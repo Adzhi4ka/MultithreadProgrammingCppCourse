@@ -20,6 +20,7 @@ namespace infrastructure::db::sqlite {
             Storage createWriter() const {
                 auto s = infrastructure::db::sqlite::makeStorage(m_dbPath);
                 s.sync_schema();
+                s.pragma.journal_mode(sqlite_orm::journal_mode::WAL);
                 return s;
             }
 

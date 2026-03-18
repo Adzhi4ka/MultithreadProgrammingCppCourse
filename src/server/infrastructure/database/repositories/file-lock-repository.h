@@ -4,7 +4,6 @@
 #include "infrastructure/database/models/file-lock.h"
 
 #include <cstdint>
-#include <utility>
 
 namespace infrastructure::db::repositories {
 
@@ -21,41 +20,32 @@ namespace infrastructure::db::repositories {
                 : m_db(db) {}
 
 
-            void get(int64_t id, auto&& callback) {
-                m_db.submitRead([id, cb = std::forward<decltype(callback)>(callback)](auto& storage) {
-                    auto fileLock = storage.template get<FileLock>(id);
-                    cb(fileLock);
+            auto lock(int64_t fileId, int64_t userId, int64_t leaseUntil) {
+                return m_db.submitWrite([fileId, userId, leaseUntil](auto& storage) mutable {
+                    
                 });
             }
 
-            void getAll(auto&& callback) {
-                m_db.submitRead([cb = std::forward<decltype(callback)>(callback)](auto& storage) {
-                    auto fileLocks = storage.template get_all<FileLock>();
-                    cb(fileLocks);
+            auto unlock(int64_t fileId) {
+                return m_db.submitWrite([fileId](auto& storage) mutable {
+                    storage.template remove<FileLock>(fileId);
                 });
             }
 
-            void add(FileLock fileLock, auto&& callback) {
-                m_db.submitWrite([fileLock = std::move(fileLock), cb = std::forward<decltype(callback)>(callback)](auto& storage) mutable {
-                    storage.insert(fileLock);
-                    cb();
+            auto getLock(int64_t fileId) {
+                return m_db.submitRead([fileId](auto& storage) -> std::optional<FileLock> {
+                    auto all = storage.template get_all<FileLock>(where(c(&FileLock::fileId) == fileId));
+                    if (all.empty()) return std::nullopt;
+                    return all.front();
                 });
             }
 
-            void update(FileLock fileLock, auto&& callback) {
-                m_db.submitWrite([fileLock = std::move(fileLock), cb = std::forward<decltype(callback)>(callback)](auto& storage) mutable {
-                    storage.update(fileLock);
-                    cb();
+            auto updateLease(int64_t fileId, int64_t leaseUntil) {
+                return m_db.submitWrite([fileId, leaseUntil](auto& storage) mutable {
+                    storage.update_column<FileLock>(&FileLock::leaseUntil, leaseUntil, where(c(&FileLock::fileId) == fileId));
                 });
             }
 
-            void remove(int64_t id, auto&& callback) {
-                m_db.submitWrite([id, cb = std::forward<decltype(callback)>(callback)](auto& storage) mutable {
-                    storage.template remove<FileLock>(id);
-                    cb();
-                });
-            }
-
-        };
+    };
 
 }

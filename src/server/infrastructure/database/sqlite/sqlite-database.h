@@ -4,10 +4,8 @@
 
 #include <deque>
 #include <mutex>
-
+#include <future>
 #include <boost/asio.hpp>
-
-#include <sqlite_orm/sqlite_orm.h>
 
 namespace infrastructure::db::sqlite {
 
@@ -16,11 +14,11 @@ namespace infrastructure::db::sqlite {
             using Storage = typename DatabaseFactory::Storage;
 
             Storage m_writer;
-
             std::deque<Storage> m_readers;
 
             using ThreadPool = boost::asio::thread_pool;
             using WriterStrand = boost::asio::strand<boost::asio::thread_pool::executor_type>;
+
             ThreadPool& m_rThreadPool;
             WriterStrand m_writerStrand;
 
@@ -29,32 +27,65 @@ namespace infrastructure::db::sqlite {
 
         public:
 
-            explicit SqliteDatabase(boost::asio::thread_pool& threadPool, DatabaseFactory factory)
-                : m_writer{factory.createWriter()},
+            explicit SqliteDatabase(boost::asio::thread_pool& threadPool, DatabaseFactory& factory)
+                : m_writer(factory.createWriter()),
                   m_readers{factory.createReaders()},
                   m_rThreadPool(threadPool),
                   m_writerStrand(threadPool.executor()),
                   m_nextReader{0} {}
 
             template<typename Func>
-            void submitWrite(Func&& func) {
+            auto submitWrite(Func&& func) -> std::future<decltype(func(m_writer))> {
+                using RetType = decltype(func(m_writer));
+
+                auto promise = std::make_shared<std::promise<RetType>>();
+                auto fut = promise->get_future();
+
                 boost::asio::post(m_writerStrand,
-                    [this, func = std::forward<Func>(func)]() mutable {
-                        func(m_writer);
+                    [this, func = std::forward<Func>(func), promise]() mutable {
+                        try {
+                            if constexpr (std::is_void_v<RetType>) {
+                                func(m_writer);
+                                promise->set_value();
+                            } else {
+                                promise->set_value(func(m_writer));
+                            }
+                        } catch (...) {
+                            promise->set_exception(std::current_exception());
+                        }
                     });
+
+                return fut;
             }
 
             template<typename Func>
-            void submitRead(Func&& func) {
+            auto submitRead(Func&& func) -> std::future<decltype(func(std::declval<Storage&>()))> {
+                using RetType = decltype(func(std::declval<Storage&>()));
+
+                auto promise = std::make_shared<std::promise<RetType>>();
+                auto fut = promise->get_future();
+
                 boost::asio::post(m_rThreadPool.executor(),
-                    [this, func = std::forward<Func>(func)]() mutable {
-                        // func(chooseReader());
+                    [this, func = std::forward<Func>(func), promise]() mutable {
+                        try {
+                            auto& reader = chooseReader();
+                            if constexpr (std::is_void_v<RetType>) {
+                                func(reader);
+                                promise->set_value();
+                            } else {
+                                promise->set_value(func(reader));
+                            }
+                        } catch (...) {
+                            promise->set_exception(std::current_exception());
+                        }
                     });
+
+                return fut;
             }
 
         private:
 
-            decltype(auto) chooseReader() {
+            Storage& chooseReader() {
                 std::lock_guard lg(m_readerChooseMutex);
 
                 auto& reader = m_readers[m_nextReader];
@@ -63,23 +94,58 @@ namespace infrastructure::db::sqlite {
                 return reader;
             }
 
+        private:
+
+            template<typename Func>
+            auto submitTransaction(Func&& func) -> std::future<decltype(func(m_writer))> {
+                using RetType = decltype(func(m_writer));
+
+                auto promise = std::make_shared<std::promise<RetType>>();
+                auto fut = promise->get_future();
+
+                boost::asio::post(m_writerStrand,
+                    [this, func = std::forward<Func>(func), promise]() mutable {
+                        try {
+
+                            auto transactionGuard = m_writer.transaction_guard();
+
+                            if constexpr (std::is_void_v<RetType>) {
+                                func(m_writer);
+                                promise->set_value();
+                            } else {
+                                transactionGuard.commit();
+                                promise->set_value(func(m_writer));
+                            }
+
+                            transactionGuard.commit();
+
+                        } catch (...) {
+                            promise->set_exception(std::current_exception());
+                        }
+                    });
+
+                return fut;
+            }
+
         public:
             
-            class TransactionScope {
+            class TransactionExecutor {
 
-                    std::unique_lock<std::mutex> m_lock;
-                    decltype(std::declval<decltype(SqliteDatabase::m_writer)>().transaction_guard()) m_guard;
+                SqliteDatabase& m_db;
 
-                public:
+            public:
 
-                    TransactionScope(SqliteDatabase& storage, std::mutex& mutex)
-                        : m_lock(mutex),
-                          m_guard(storage.m_writer.transaction_guard())
-                    {}
+                explicit TransactionExecutor(SqliteDatabase& db)
+                    : m_db(db) {}
 
-                    void commit() noexcept {
-                        m_guard.commit();
-                    }
+                template<typename Func>
+                auto exec(Func&& func)
+                {
+                    return m_db.submitTransaction(
+                        [func = std::forward<Func>(func)]() mutable {
+                            return func();
+                        });
+                }
 
             };
 

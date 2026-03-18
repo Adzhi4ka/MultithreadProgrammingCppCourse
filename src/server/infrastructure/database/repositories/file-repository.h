@@ -4,7 +4,6 @@
 #include "infrastructure/database/models/file.h"
 
 #include <cstdint>
-#include <utility>
 
 namespace infrastructure::db::repositories {
 
@@ -21,41 +20,36 @@ namespace infrastructure::db::repositories {
                 : m_db(db) {}
 
 
-            void get(int64_t id, auto&& callback) {
-                m_db.submitRead([id, cb = std::forward<decltype(callback)>(callback)](auto& storage) {
-                    auto file = storage.template get<File>(id);
-                    cb(file);
+            auto getById(int64_t id) {
+                return m_db.submitRead([id](auto& storage) {
+                    return storage.template get<File>(id);
                 });
             }
 
-            void getAll(auto&& callback) {
-                m_db.submitRead([cb = std::forward<decltype(callback)>(callback)](auto& storage) {
-                    auto files = storage.template get_all<File>();
-                    cb(files);
+            auto getAll() {
+                return m_db.submitRead([](auto& storage) {
+                    return storage.template get_all<File>();
                 });
             }
 
-            void add(File file, auto&& callback) {
-                m_db.submitWrite([file = std::move(file), cb = std::forward<decltype(callback)>(callback)](auto& storage) mutable {
-                    storage.insert(file);
-                    cb();
+            auto create(File file) {
+                return m_db.submitWrite([file = std::move(file)](auto& storage) mutable {
+                    return storage.insert(file);
                 });
             }
 
-            void update(File file, auto&& callback) {
-                m_db.submitWrite([file = std::move(file), cb = std::forward<decltype(callback)>(callback)](auto& storage) mutable {
+            auto update(File file) {
+                return m_db.submitWrite([file = std::move(file)](auto& storage) mutable {
                     storage.update(file);
-                    cb();
                 });
             }
 
-            void remove(int64_t id, auto&& callback) {
-                m_db.submitWrite([id, cb = std::forward<decltype(callback)>(callback)](auto& storage) mutable {
+            auto remove(int64_t id) {
+                return m_db.submitWrite([id](auto& storage) mutable {
                     storage.template remove<File>(id);
-                    cb();
                 });
             }
 
-        };
+    };
 
 }

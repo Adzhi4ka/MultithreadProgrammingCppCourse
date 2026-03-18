@@ -4,7 +4,6 @@
 #include "infrastructure/database/models/group.h"
 
 #include <cstdint>
-#include <utility>
 
 namespace infrastructure::db::repositories {
 
@@ -21,41 +20,38 @@ namespace infrastructure::db::repositories {
                 : m_db(db) {}
 
 
-            void get(int64_t id, auto&& callback) {
-                m_db.submitRead([id, cb = std::forward<decltype(callback)>(callback)](auto& storage) {
-                    auto group = storage.template get<Group>(id);
-                    cb(group);
+            auto getById(int64_t id) {
+                return m_db.submitRead([id](auto& storage) {
+                    return storage.template get<Group>(id);
                 });
             }
 
-            void getAll(auto&& callback) {
-                m_db.submitRead([cb = std::forward<decltype(callback)>(callback)](auto& storage) {
-                    auto groups = storage.template get_all<Group>();
-                    cb(groups);
+            auto getByName(const std::string& name) {
+                return m_db.submitRead([name](auto& storage) -> std::optional<Group> {
+                    auto all = storage.template  get_all<Group>(sqlite_orm::where(sqlite_orm::c(&Group::name) == name));
+                    if (all.empty()) return std::nullopt;
+                    return all.front();
                 });
             }
 
-            void add(Group group, auto&& callback) {
-                m_db.submitWrite([group = std::move(group), cb = std::forward<decltype(callback)>(callback)](auto& storage) mutable {
-                    storage.insert(group);
-                    cb();
+            auto getAll() {
+                return m_db.submitRead([](auto& storage) {
+                    return storage.template get_all<Group>();
                 });
             }
 
-            void update(Group group, auto&& callback) {
-                m_db.submitWrite([group = std::move(group), cb = std::forward<decltype(callback)>(callback)](auto& storage) mutable {
-                    storage.update(group);
-                    cb();
+            auto create(Group group) {
+                return m_db.submitWrite([group = std::move(group)](auto& storage) mutable {
+                    return storage.insert(group);
                 });
             }
 
-            void remove(int64_t id, auto&& callback) {
-                m_db.submitWrite([id, cb = std::forward<decltype(callback)>(callback)](auto& storage) mutable {
+            auto remove(int64_t id) {
+                return m_db.submitWrite([id](auto& storage) mutable {
                     storage.template remove<Group>(id);
-                    cb();
                 });
             }
 
-        };
+    };
 
 }

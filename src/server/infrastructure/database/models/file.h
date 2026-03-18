@@ -7,11 +7,11 @@ namespace infrastructure::db::models {
 
     struct File {
         int64_t id;
-        std::string name;
-        int64_t version;
-        int64_t created_at;
-        int64_t modified_at;
-        int64_t modified_by;
+        std::string fullLogicalName;
+        int64_t currentVersionId;
+        uint32_t maxVersionCount;
+        int64_t createdAt;
+        int64_t createdBy;
     };
 
 }

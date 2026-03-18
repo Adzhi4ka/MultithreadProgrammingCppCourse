@@ -4,7 +4,6 @@
 #include "infrastructure/database/models/user.h"
 
 #include <cstdint>
-#include <utility>
 
 namespace infrastructure::db::repositories {
 
@@ -21,41 +20,48 @@ namespace infrastructure::db::repositories {
                 : m_db(db) {}
 
 
-            void get(int64_t id, auto&& callback) {
-                m_db.submitRead([id, cb = std::forward<decltype(callback)>(callback)](auto& storage) {
-                    auto user = storage.template get<User>(id);
-                    cb(user);
+            auto getById(int64_t id) {
+                return m_db.submitRead([id](auto& storage) {
+                    return storage.template get<User>(id);
                 });
             }
 
-            void getAll(auto&& callback) {
-                m_db.submitRead([cb = std::forward<decltype(callback)>(callback)](auto& storage) {
-                    auto users = storage.template get_all<User>();
-                    cb(users);
+            auto getByLogin(const std::string& login) {
+                return m_db.submitRead([login](auto& storage) -> std::optional<User> {
+                    auto all = storage.template get_all<User>(sqlite_orm::where(sqlite_orm::c(&User::login) == login));
+
+                    if (all.empty()) {
+                        return std::nullopt;
+                    }
+
+                    return all.front();
                 });
             }
 
-            void add(User user, auto&& callback) {
-                m_db.submitWrite([user = std::move(user), cb = std::forward<decltype(callback)>(callback)](auto& storage) mutable {
-                    storage.insert(user);
-                    cb();
+            auto getAll() {
+                return m_db.submitRead([](auto& storage) {
+                    return storage.template get_all<User>();
                 });
             }
 
-            void update(User user, auto&& callback) {
-                m_db.submitWrite([user = std::move(user), cb = std::forward<decltype(callback)>(callback)](auto& storage) mutable {
+            auto create(User user) {
+                return m_db.submitWrite([user = std::move(user)](auto& storage) mutable {
+                    return storage.insert(user);
+                });
+            }
+
+            auto update(User user) {
+                return m_db.submitWrite([user = std::move(user)](auto& storage) mutable {
                     storage.update(user);
-                    cb();
                 });
             }
 
-            void remove(int64_t id, auto&& callback) {
-                m_db.submitWrite([id, cb = std::forward<decltype(callback)>(callback)](auto& storage) mutable {
+            auto remove(int64_t id) {
+                return m_db.submitWrite([id](auto& storage) mutable {
                     storage.template remove<User>(id);
-                    cb();
                 });
             }
 
-        };
+    };
 
 }
