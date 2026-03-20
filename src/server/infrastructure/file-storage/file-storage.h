@@ -1,11 +1,9 @@
 #pragma once
 
-#include <filesystem>
-#include <utility>
+#include <array>
+#include <cstdint>
 
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <unistd.h>
+#include <sys/types.h>
 
 namespace infrastructure::db::file_storage {
 
@@ -14,71 +12,54 @@ namespace infrastructure::db::file_storage {
             static constexpr int kInvalidFd = -1;
             int m_fd{kInvalidFd};
 
+        public:
+
+            static std::array<char, 124> m_pathBuf;
+            static std::size_t m_prefixLen;
+
         private:
 
-            explicit FileStorage(int fd) noexcept : m_fd(fd) {}
+            explicit FileStorage(int fd) noexcept;
     
         public:
 
             FileStorage() = delete;
 
-           ~FileStorage() {
-                ::close(m_fd);
-            }
+           ~FileStorage();
 
-            FileStorage(FileStorage&& other) noexcept : m_fd(std::exchange(other.m_fd, kInvalidFd)) {}
+            FileStorage(FileStorage&& other) noexcept;
 
-            FileStorage& operator=(FileStorage&& other) noexcept {
-                m_fd = std::exchange(other.m_fd, kInvalidFd);
-                return *this;
-            }
+            FileStorage& operator=(FileStorage&& other) noexcept;
 
-            static FileStorage openReadOnly(const std::filesystem::path& path) {
-                return FileStorage(openImpl(path, O_RDONLY, 0));
-            }
+            static FileStorage openReadOnly(uint64_t path);
 
-            static FileStorage openWriteOnly(const std::filesystem::path& path) {
-                return FileStorage(openImpl(path, O_WRONLY, 0));
-            }
+            static FileStorage openWriteOnly(uint64_t path);
 
-            static FileStorage openReadWrite(const std::filesystem::path& path) {
-                return FileStorage(openImpl(path, O_RDWR, 0));
-            }
+            static FileStorage openReadWrite(uint64_t path);
 
-            static FileStorage createNew(const std::filesystem::path& path, mode_t mode = 0644) {
-                return FileStorage(openImpl(path, O_CREAT | O_EXCL | O_WRONLY, mode));
-            }
+            static FileStorage createNew(uint64_t path, mode_t mode = 0644);
 
         private:
 
-            static int openImpl(const std::filesystem::path& path, int flags, mode_t mode) {
-                int fd = -1;
+            static int openImpl(std::array<char, 124> path, int flags, mode_t mode);
 
-                do {
-                    if (flags & O_CREAT) {
-                        fd = ::open(path.c_str(), flags, mode);
-                    } else {
-                        fd = ::open(path.c_str(), flags);
-                    }
-                } while (fd == -1 && errno == EINTR);
+            static inline auto fillAsciiHex(uint64_t value) {
+                static constexpr char hex[] = "0123456789abcdef";
 
-                if (fd == -1) {
-                    throw std::system_error(errno, std::generic_category(),
-                        "open failed: " + path.string());
+                auto pathBuf = m_pathBuf;
+
+                for (int i = 15; i >= 0; --i) {
+                    pathBuf[m_prefixLen + i] = hex[value & 0xF];
+                    value >>= 4;
                 }
+                pathBuf[m_prefixLen + 16] = '\0';
 
-                return fd;
+                return pathBuf;                
             }
 
         public:
 
-            auto size() const {
-                struct stat st {};
-                if (::fstat(m_fd, &st) == -1) {
-                    throw std::system_error(errno, std::generic_category(), "fstat failed");
-                }
-                return st.st_size;
-            }
+            auto size() const;
 
             inline auto getFd() const noexcept {
                 return m_fd;

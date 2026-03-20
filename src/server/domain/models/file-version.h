@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <string>
 
-namespace infrastructure::db::models {
+namespace domain::models {
 
     struct FileVersion {
         int64_t id;

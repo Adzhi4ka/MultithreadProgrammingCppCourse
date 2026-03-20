@@ -1,9 +1,8 @@
 #pragma once
 
 #include <cstdint>
-#include <string>
 
-namespace infrastructure::db::models {
+namespace domain::models {
 
     struct FileLock {
         int64_t fileId;

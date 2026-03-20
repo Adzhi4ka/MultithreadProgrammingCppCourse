@@ -113,7 +113,6 @@ namespace infrastructure::db::sqlite {
                                 func(m_writer);
                                 promise->set_value();
                             } else {
-                                transactionGuard.commit();
                                 promise->set_value(func(m_writer));
                             }
 
@@ -141,10 +140,7 @@ namespace infrastructure::db::sqlite {
                 template<typename Func>
                 auto exec(Func&& func)
                 {
-                    return m_db.submitTransaction(
-                        [func = std::forward<Func>(func)]() mutable {
-                            return func();
-                        });
+                    return m_db.submitTransaction(std::forward<Func>(func));
                 }
 
             };

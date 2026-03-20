@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <string>
 
-namespace infrastructure::db::models {
+namespace domain::models {
 
     struct User {
         int64_t id;

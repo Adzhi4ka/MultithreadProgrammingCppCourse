@@ -2,7 +2,7 @@
 
 #include <cstdint>
 
-namespace infrastructure::db::models {
+namespace domain::models {
 
     struct UserGroup {
         int64_t userId;

@@ -82,7 +82,7 @@ namespace infrastructure::db::sqlite {
                 make_column("file_id", &models::FileAcl::fileId),
                 make_column("group_id", &models::FileAcl::groupId),
                 make_column("acl_level", &models::FileAcl::aclLevel),
-                primary_key(&models::FileAcl::fileId, &models::FileAcl::groupId),
+                primary_key(&models::FileAcl::fileId, (int8_t models::FileAcl::*)&models::FileAcl::groupId),
                 foreign_key(&models::FileAcl::fileId).references(&models::File::id).on_delete.cascade(),
                 foreign_key(&models::FileAcl::groupId).references(&models::Group::id)
             ),
