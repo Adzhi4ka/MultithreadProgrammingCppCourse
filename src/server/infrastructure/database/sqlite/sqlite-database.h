@@ -31,17 +31,15 @@ namespace infrastructure::db::sqlite {
 
     class ReadUnitOfWork final : public UnitOfWork {
 
-            SqliteDatabase& m_owner;
+            SqliteDatabase* m_pOwner;
 
         public:
 
             explicit ReadUnitOfWork(SqliteDatabase& owner, SQLite::Database& db);
 
             ~ReadUnitOfWork() override;
-        
-        private:
 
-            void release();
+            void close();
 
     };
 
@@ -51,7 +49,7 @@ namespace infrastructure::db::sqlite {
             static constexpr const char* const kCommit = "COMMIT";
             static constexpr const char* const kRollback = "ROLLBACK";
 
-            SqliteDatabase& m_owner;
+            SqliteDatabase* m_pOwner;
 
             bool m_finished {false};
 
@@ -65,10 +63,7 @@ namespace infrastructure::db::sqlite {
 
             void commit();
             void rollback() noexcept;
-
-        private:
-
-            void release();
+            void close();
 
     };
 

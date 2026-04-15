@@ -1,10 +1,11 @@
 include(FetchContent)
-    FetchContent_Declare(
-        googletest
-        URL https://github.com/google/googletest/archive/refs/tags/v1.15.2.zip
-    )
-    FetchContent_MakeAvailable(googletest)
 
-add_subdirectory(common)
-add_subdirectory(client)
+FetchContent_Declare(
+    googletest
+    URL https://github.com/google/googletest/archive/refs/tags/v1.15.2.zip
+)
+FetchContent_MakeAvailable(googletest)
+
+include(GoogleTest)
+
 add_subdirectory(server)

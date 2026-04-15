@@ -10,31 +10,37 @@ namespace infrastructure::db::sqlite {
 
 
 
-    ReadUnitOfWork::ReadUnitOfWork(SqliteDatabase& owner, SQLite::Database& db) : UnitOfWork(db), m_owner(owner) {}
+    ReadUnitOfWork::ReadUnitOfWork(SqliteDatabase& owner, SQLite::Database& db) : UnitOfWork(db), m_pOwner(&owner) {}
 
     ReadUnitOfWork::~ReadUnitOfWork() {
-        release();
+        close();
     };
 
-    void ReadUnitOfWork::release() {
-        m_owner.releaseReader(m_db);
+    void ReadUnitOfWork::close() {
+        if (!m_pOwner) return;
+
+        m_pOwner->releaseReader(m_db);
+        m_pOwner = nullptr;
     }
 
 
 
-    WriteUnitOfWork::WriteUnitOfWork(SqliteDatabase& owner, SQLite::Database& db) : UnitOfWork(db), m_owner(owner) {
+    WriteUnitOfWork::WriteUnitOfWork(SqliteDatabase& owner, SQLite::Database& db) : UnitOfWork(db), m_pOwner(&owner) {
         m_db.exec(kBegin);
     }
 
     WriteUnitOfWork::~WriteUnitOfWork() {
         rollback();
-        release();
+        close();
     }
+
     void WriteUnitOfWork::commit() {
         if (m_finished) return;
 
         m_db.exec(kCommit);
         m_finished = true;
+
+        close();
     }
 
     void WriteUnitOfWork::rollback() noexcept {
@@ -45,10 +51,15 @@ namespace infrastructure::db::sqlite {
         } catch (...) {}
 
         m_finished = true;
+
+        close();
     }
 
-    void WriteUnitOfWork::release() {
-        m_owner.releaseWriter();
+    void WriteUnitOfWork::close() {
+        if (!m_pOwner) return;
+
+        m_pOwner->releaseWriter();
+        m_pOwner = nullptr;
     }
 
 
