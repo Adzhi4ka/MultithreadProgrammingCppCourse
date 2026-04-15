@@ -2,14 +2,14 @@
 
 #include "infrastructure/database/sqlite/sqlite-database.h"
 
-#include "infrastructure/database/models/file-acl.h"
+#include "domain/models/file-acl.h"
 
 #include <cstdint>
 
 namespace infrastructure::db::repositories {
 
     using namespace infrastructure::db::sqlite;
-    using namespace infrastructure::db::models;
+    using namespace domain::models;
 
     class FileAclRepository {
 
@@ -19,13 +19,11 @@ namespace infrastructure::db::repositories {
 
             explicit FileAclRepository(SqliteDatabase& db) : m_db(db) {}
 
-            std::future<void> grant(int64_t fileId, int64_t groupId, int aclLevel);
+            void grant(WriteUnitOfWork& wuov, FileAcl fileAcl);
+            void revoke(WriteUnitOfWork& wuov, int64_t fileId, int64_t groupId);
 
-            std::future<void> revoke(int64_t fileId, int64_t groupId);
-
-            std::future<std::vector<FileAcl>> getFileAcl(int64_t fileId);
-
-            std::future<std::vector<FileAcl>> getGroupAcl(int64_t groupId);
+            std::vector<FileAcl> getFileAcl(UnitOfWork& readUnitOfWork, int64_t fileId);
+            std::vector<FileAcl> getGroupAcl(UnitOfWork& readUnitOfWork, int64_t groupId);
 
     };
 

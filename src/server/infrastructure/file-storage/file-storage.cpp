@@ -10,7 +10,6 @@
 
 namespace infrastructure::db::file_storage {
 
-
         FileStorage::FileStorage(int fd) noexcept : m_fd(fd) {}
     
         FileStorage::~FileStorage() {

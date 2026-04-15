@@ -1,37 +1,29 @@
 #pragma once
 
-#include "schema.h"
+#include <SQLiteCpp/SQLiteCpp.h>
 
-#include <deque>
+#include <string>
+#include <vector>
 
 namespace infrastructure::db::sqlite {
    
     class DatabaseFactory {
+
+            using Database = SQLite::Database;
+            using DatabaseUniquePtr = std::unique_ptr<Database>;
 
             std::string m_dbPath;
             size_t m_readersCount;
 
         public:
 
-            using Storage = decltype(infrastructure::db::sqlite::makeStorage({}));
+            DatabaseFactory(std::string dbPath, size_t readersCount) noexcept
+                 : m_dbPath(std::move(dbPath)), m_readersCount(readersCount) {}
 
-            DatabaseFactory(std::string dbPath, size_t readersCount) : m_dbPath(std::move(dbPath)), m_readersCount(readersCount) {}
+            DatabaseUniquePtr createWriter() const;
 
-            Storage createWriter() const {
-                auto s = infrastructure::db::sqlite::makeStorage(m_dbPath);
-                s.sync_schema();
-                s.pragma.journal_mode(sqlite_orm::journal_mode::WAL);
-                return s;
-            }
-
-            std::deque<Storage> createReaders() const {
-                std::deque<Storage> readers;
-                for(size_t i = 0; i < m_readersCount; ++i) {
-                    readers.emplace_back(infrastructure::db::sqlite::makeStorage(m_dbPath));
-                }
-                return readers;
-            }
+            std::vector<DatabaseUniquePtr> createReaders() const;
 
     };
 
-}
+} // namespace infrastructure::db::sqlite

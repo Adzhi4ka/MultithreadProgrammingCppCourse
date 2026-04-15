@@ -1,14 +1,14 @@
 #pragma once
 
 #include "infrastructure/database/sqlite/sqlite-database.h"
-#include "infrastructure/database/models/file.h"
+#include "domain/models/file.h"
 
 #include <cstdint>
 
 namespace infrastructure::db::repositories {
 
     using namespace infrastructure::db::sqlite;
-    using namespace infrastructure::db::models;
+    using namespace domain::models;
 
     class FileRepository {
 
@@ -19,36 +19,12 @@ namespace infrastructure::db::repositories {
             explicit FileRepository(SqliteDatabase& db)
                 : m_db(db) {}
 
+            void create(WriteUnitOfWork& wuov, File file);
+            void update(WriteUnitOfWork& wuov, File file);
+            void remove(WriteUnitOfWork& wuov, int64_t id);
 
-            auto getById(int64_t id) {
-                return m_db.submitRead([id](auto& storage) {
-                    return storage.template get<File>(id);
-                });
-            }
-
-            auto getAll() {
-                return m_db.submitRead([](auto& storage) {
-                    return storage.template get_all<File>();
-                });
-            }
-
-            auto create(File file) {
-                return m_db.submitWrite([file = std::move(file)](auto& storage) mutable {
-                    return storage.insert(file);
-                });
-            }
-
-            auto update(File file) {
-                return m_db.submitWrite([file = std::move(file)](auto& storage) mutable {
-                    storage.update(file);
-                });
-            }
-
-            auto remove(int64_t id) {
-                return m_db.submitWrite([id](auto& storage) mutable {
-                    storage.template remove<File>(id);
-                });
-            }
+            File getById(UnitOfWork& uov, int64_t id);
+            std::vector<File> getAll(UnitOfWork& uov);
 
     };
 

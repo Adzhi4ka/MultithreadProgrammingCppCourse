@@ -8,7 +8,7 @@ namespace domain::models {
     struct FileVersion {
         int64_t id;
         int64_t fileId;
-        uint32_t version;
+        int32_t version;
         std::string logicalNameSnapshot;
         uint64_t physicalPathName;
         int64_t createdAt;

@@ -2,12 +2,16 @@
 
 #include "infrastructure/database/sqlite/sqlite-database.h"
 
+#include "domain/models/user.h"
+#include "domain/models/group.h"
+#include "domain/models/user-group.h"
+
 #include <cstdint>
 
 namespace infrastructure::db::repositories {
 
     using namespace infrastructure::db::sqlite;
-    using namespace infrastructure::db::models;
+    using namespace domain::models;
 
     class UserGroupRepository {
 
@@ -17,43 +21,11 @@ namespace infrastructure::db::repositories {
 
             explicit UserGroupRepository(SqliteDatabase& db) : m_db(db) {}
 
-            auto addUserToGroup(int64_t userId, int64_t groupId) {
-                return m_db.submitWrite([userId, groupId](auto& storage) mutable {
-                    storage.insert(UserGroup{userId, groupId});
-                });
-            }
+            void addUserToGroup(WriteUnitOfWork& wuov, UserGroup userGroup);
+            void removeUserFromGroup(WriteUnitOfWork& wuov, UserGroup userGroup);
 
-            auto removeUserFromGroup(int64_t userId, int64_t groupId) {
-                return m_db.submitWrite([userId, groupId](auto& storage) mutable {
-                    storage.template remove<UserGroup>(std::make_tuple(userId, groupId));
-                });
-            }
-
-            auto getGroupsOfUser(int64_t userId) {
-                return m_db.submitRead([userId](auto& storage) {
-                    auto rows = storage.template get_all<UserGroup>(sqlite_orm::where(sqlite_orm::c(&UserGroup::userId) == userId));
-
-                    std::vector<int64_t> result;
-                    for (auto& r : rows) {
-                        result.emplace_back(std::move(r.groupId));
-                    }
-
-                    return result;
-                });
-            }
-
-            auto getUsersOfGroup(int64_t groupId) {
-                return m_db.submitRead([groupId](auto& storage) {
-                    auto rows = storage.template get_all<UserGroup>(sqlite_orm::where(sqlite_orm::c(&UserGroup::groupId) == groupId));
-
-                    std::vector<int64_t> result;
-                    for (auto& r : rows) {
-                        result.emplace_back(std::move(r.userId));
-                    }
-
-                    return result;
-                });
-            }
+            std::vector<int64_t> getGroupIdsOfUser(UnitOfWork& uov, int64_t userId);
+            std::vector<int64_t> getUserIdsOfGroup(UnitOfWork& uov, int64_t groupId);
 
     };
 
