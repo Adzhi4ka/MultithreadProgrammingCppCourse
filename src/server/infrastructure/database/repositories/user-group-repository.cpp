@@ -42,14 +42,14 @@ namespace infrastructure::db::repositories {
         statement.executeStep();
     }
 
-    std::vector<int64_t> UserGroupRepository::getGroupIdsOfUser(UnitOfWork& uov, int64_t userId) {
+    std::vector<int64_t> UserGroupRepository::getGroupIdsOfUser(UnitOfWork& uow, int64_t userId) {
         constexpr const char* const sql = {
             "SELECT group_id "
             "FROM user_group "
             "WHERE user_id = ?;"
         };
 
-        SQLite::Statement statement(uov.connection(), sql);
+        SQLite::Statement statement(uow.connection(), sql);
 
         {
             int bindIndex = 1;
@@ -65,14 +65,14 @@ namespace infrastructure::db::repositories {
         return groups;
     }
 
-    std::vector<int64_t> UserGroupRepository::getUserIdsOfGroup(UnitOfWork& uov, int64_t groupId) {
+    std::vector<int64_t> UserGroupRepository::getUserIdsOfGroup(UnitOfWork& uow, int64_t groupId) {
         constexpr const char* const sql = {
             "SELECT user_id "
             "FROM user_group "
             "WHERE group_id = ?;"
         };
 
-        SQLite::Statement statement(uov.connection(), sql);
+        SQLite::Statement statement(uow.connection(), sql);
 
         {
             int bindIndex = 1;

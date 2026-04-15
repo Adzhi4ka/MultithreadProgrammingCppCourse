@@ -1,11 +1,11 @@
 add_library(server_domain_notification INTERFACE)
 
-target_include_directories(server_infrastructure_database_repositories
+target_include_directories(server_domain_notification
     INTERFACE
         ${PROJECT_SOURCE_DIR}/src/server
 )
 
-target_link_libraries(server_infrastructure_database_repositories
+target_link_libraries(server_domain_notification
     INTERFACE
         server_domain_models
 )

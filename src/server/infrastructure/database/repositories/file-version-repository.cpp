@@ -61,7 +61,7 @@ namespace infrastructure::db::repositories {
         statement.executeStep();
     }
 
-    std::vector<FileVersion> FileVersionRepository::getVersions(UnitOfWork& uov, int64_t fileId) {
+    std::vector<FileVersion> FileVersionRepository::getVersions(UnitOfWork& uow, int64_t fileId) {
         constexpr const char* const sql = {
             "SELECT id, file_id, version, logical_name_snapshot, physical_path_name, created_at "
             "FROM file_versions "
@@ -69,7 +69,7 @@ namespace infrastructure::db::repositories {
             "ORDER BY version ASC;"
         };
 
-        SQLite::Statement statement(uov.connection(), sql);
+        SQLite::Statement statement(uow.connection(), sql);
 
         {
             int bindIndex = 1;
@@ -85,14 +85,14 @@ namespace infrastructure::db::repositories {
         return fileVersions;
     }
 
-    FileVersion FileVersionRepository::getVersion(UnitOfWork& uov, int64_t fileId, int32_t version) {
+    FileVersion FileVersionRepository::getVersion(UnitOfWork& uow, int64_t fileId, int32_t version) {
         constexpr const char* const sql = {
             "SELECT id, file_id, version, logical_name_snapshot, physical_path_name, created_at "
             "FROM file_versions "
             "WHERE file_id = ? AND version = ?;"
         };
 
-        SQLite::Statement statement(uov.connection(), sql);
+        SQLite::Statement statement(uow.connection(), sql);
 
         {
             int bindIndex = 1;

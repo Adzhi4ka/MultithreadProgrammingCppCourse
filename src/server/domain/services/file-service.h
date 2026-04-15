@@ -1,5 +1,8 @@
 #pragma once
 
+#include "domain/models/file.h"
+#include "domain/models/file-version.h"
+
 #include <cstdint>
 #include <optional>
 #include <string>

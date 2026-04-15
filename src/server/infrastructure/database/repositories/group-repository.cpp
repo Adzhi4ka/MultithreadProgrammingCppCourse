@@ -47,14 +47,14 @@ namespace infrastructure::db::repositories {
         statement.executeStep();
     }
 
-    Group GroupRepository::getById(UnitOfWork& uov, int64_t id) {
+    Group GroupRepository::getById(UnitOfWork& uow, int64_t id) {
         constexpr const char* const sql = {
             "SELECT id, name "
             "FROM groups "
             "WHERE id = ?;"
         };
 
-        SQLite::Statement statement(uov.connection(), sql);
+        SQLite::Statement statement(uow.connection(), sql);
 
         {
             int bindIndex = 1;
@@ -66,14 +66,14 @@ namespace infrastructure::db::repositories {
         return readFromStatement(statement);
     }
 
-    Group GroupRepository::getByName(UnitOfWork& uov, const std::string& name) {
+    Group GroupRepository::getByName(UnitOfWork& uow, const std::string& name) {
         constexpr const char* const sql = {
             "SELECT id, name "
             "FROM groups "
             "WHERE name = ?;"
         };
 
-        SQLite::Statement statement(uov.connection(), sql);
+        SQLite::Statement statement(uow.connection(), sql);
 
         {
             int bindIndex = 1;
@@ -85,13 +85,13 @@ namespace infrastructure::db::repositories {
         return readFromStatement(statement);
     }
 
-    std::vector<Group> GroupRepository::getAll(UnitOfWork& uov) {
+    std::vector<Group> GroupRepository::getAll(UnitOfWork& uow) {
         constexpr const char* const sql = {
             "SELECT id, name "
             "FROM groups;"
         };
 
-        SQLite::Statement statement(uov.connection(), sql);
+        SQLite::Statement statement(uow.connection(), sql);
 
         std::vector<Group> groups;
 

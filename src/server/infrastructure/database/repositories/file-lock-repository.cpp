@@ -9,25 +9,30 @@ namespace infrastructure::db::repositories {
     using namespace infrastructure::db::sqlite;
     using namespace domain::models;
 
-    void FileLockRepository::lock(WriteUnitOfWork& wuov, FileLock file) {
+    RepositoryOpResult<void> FileLockRepository::lock(WriteUnitOfWork& wuov, FileLock file) {
         constexpr const char* const sql = {
             "INSERT INTO file_lock"
                 "(file_id, user_id, lease_until) "
             "VALUES (?, ?, ?);"
         };
 
-        SQLite::Statement statement(wuov.connection(), sql);
-        {
-            int bindIndex = 1;
-            statement.bind(bindIndex++, file.fileId);
-            statement.bind(bindIndex++, file.userId);
-            statement.bind(bindIndex++, file.leaseUntil);
-        }
+        try {
+            SQLite::Statement statement(wuov.connection(), sql);
+            {
+                int bindIndex = 1;
+                statement.bind(bindIndex++, file.fileId);
+                statement.bind(bindIndex++, file.userId);
+                statement.bind(bindIndex++, file.leaseUntil);
+            }
 
-        statement.executeStep();
+            statement.exec();
+            return {};
+        } catch (const SQLite::Exception&) {
+            return std::unexpected(RepositoryError::InternalError);
+        }
     }
 
-    void FileLockRepository::unlock(WriteUnitOfWork& wuov, int64_t fileId) {
+    RepositoryOpResult<void> FileLockRepository::unlock(WriteUnitOfWork& wuov, int64_t fileId) {
         constexpr const char* const sql = {
             "DELETE FROM file_lock "
             "WHERE file_id = ?;"
@@ -43,14 +48,14 @@ namespace infrastructure::db::repositories {
         statement.executeStep();
     }
 
-    FileLock FileLockRepository::getLock(UnitOfWork& uov, int64_t fileId) {
+    RepositoryOpResult<FileLock> FileLockRepository::getLock(UnitOfWork& uow, int64_t fileId) {
         constexpr const char* const sql = {
             "SELECT file_id, user_id, lease_until "
             "FROM file_lock "
             "WHERE file_id = ?;"
         };
 
-        SQLite::Statement statement(uov.connection(), sql);
+        SQLite::Statement statement(uow.connection(), sql);
 
         {
             int bindIndex = 1;
@@ -66,7 +71,7 @@ namespace infrastructure::db::repositories {
                         .leaseUntil = statement.getColumn(readIndex++)};
     }
 
-    void FileLockRepository::updateLease(WriteUnitOfWork& wuov, int64_t fileId, int64_t leaseUntil) {
+    RepositoryOpResult<void> FileLockRepository::updateLease(WriteUnitOfWork& wuov, int64_t fileId, int64_t leaseUntil) {
         constexpr const char* const sql = {
             "UPDATE file_lock "
             "SET lease_until = ? "

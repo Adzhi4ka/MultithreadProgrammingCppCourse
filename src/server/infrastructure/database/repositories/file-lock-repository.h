@@ -1,5 +1,6 @@
 #pragma once
 
+#include "infrastructure/database/repositories/repository-return-types.h"
 #include "infrastructure/database/sqlite/sqlite-database.h"
 
 #include "domain/models/file-lock.h"
@@ -20,11 +21,11 @@ namespace infrastructure::db::repositories {
             explicit FileLockRepository(SqliteDatabase& db)
                 : m_db(db) {}
 
-            void lock(WriteUnitOfWork& wuov, FileLock fileLock);
-            void unlock(WriteUnitOfWork& wuov, int64_t fileId);
-            void updateLease(WriteUnitOfWork& wuov, int64_t fileId, int64_t leaseUntil);
+            RepositoryOpResult<void> lock(WriteUnitOfWork& wuov, FileLock fileLock);
+            RepositoryOpResult<void> unlock(WriteUnitOfWork& wuov, int64_t fileId);
+            RepositoryOpResult<void> updateLease(WriteUnitOfWork& wuov, int64_t fileId, int64_t leaseUntil);
 
-            FileLock getLock(UnitOfWork& wuov, int64_t fileId);
+            RepositoryOpResult<FileLock> getLock(UnitOfWork& wuov, int64_t fileId);
 
     };
 

@@ -23,9 +23,9 @@ namespace infrastructure::db::repositories {
             void update(WriteUnitOfWork& wuov, User user);
             void remove(WriteUnitOfWork& wuov, int64_t id);
 
-            User getById(UnitOfWork& uov, int64_t id);
-            User getByLogin(UnitOfWork& uov, const std::string& login);
-            std::vector<User> getAll(UnitOfWork& uov);
+            User getById(UnitOfWork& uow, int64_t id);
+            User getByLogin(UnitOfWork& uow, const std::string& login);
+            std::vector<User> getAll(UnitOfWork& uow);
     };
 
 }

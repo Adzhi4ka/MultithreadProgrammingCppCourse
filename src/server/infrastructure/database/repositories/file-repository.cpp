@@ -18,14 +18,14 @@ namespace infrastructure::db::repositories {
                     .createdBy = stmt.getColumn(readIndex++)};
     }
 
-    File FileRepository::getById(UnitOfWork& uov, int64_t id) {
+    File FileRepository::getById(UnitOfWork& uow, int64_t id) {
         constexpr const char* const sql = {
             "SELECT id, full_logical_name, current_version_id, max_version_count, created_at, created_by "
             "FROM files "
             "WHERE id = ?;"
         };
 
-        SQLite::Statement statement(uov.connection(), sql);
+        SQLite::Statement statement(uow.connection(), sql);
         {
             int bindIndex = 1;
             statement.bind(bindIndex++, id);
@@ -36,13 +36,13 @@ namespace infrastructure::db::repositories {
         return readFromStatement(statement);
     }
 
-    std::vector<File> FileRepository::getAll(UnitOfWork& uov) {
+    std::vector<File> FileRepository::getAll(UnitOfWork& uow) {
         constexpr const char* const sql = {
             "SELECT id, full_logical_name, current_version_id, max_version_count, created_at, created_by "
             "FROM files;"
         };
 
-        SQLite::Statement statement(uov.connection(), sql);
+        SQLite::Statement statement(uow.connection(), sql);
 
         std::vector<File> files;
 

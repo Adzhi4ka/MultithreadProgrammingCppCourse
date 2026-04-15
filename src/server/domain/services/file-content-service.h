@@ -1,25 +1,31 @@
-#pragma once
+// #pragma once
 
-#include <string>
+// #include "infrastructure/file-storage/file-storage.h"
 
-namespace domain::services {
+// #include <string>
 
-    class FileContentService {
+// namespace domain::services {
 
+//     using namespace infrastructure::db;
 
+//     class FileContentService {
 
-        public:
+//         public:
 
-            FileStorage createNewFileStorage(const std::string& logicalPath);
+//             file_storage::FileStorage createNewFileStorage(const std::string& logicalPath) {
+//                 return file_storage::FileStorage::createNew(physicalPathFromLogical(logicalPath));
+//             }
 
-            FileStorage getFileStorage(const std::string& logicalPath);
+//             file_storage::FileStorage getFileStorage(const std::string& logicalPath) {
+//                 return file_storage::FileStorage::(physicalPathFromLogical(logicalPath));
+//             }
 
-            FileStorage deleteFileStorage(const std::string& logicalPath);
+//             file_storage::FileStorage deleteFileStorage(const std::string& logicalPath);
 
-        private:
+//         private:
 
-            uint64_t physicalPathFromLogical(const std::string& logicalPath);
+//             uint64_t physicalPathFromLogical(const std::string& logicalPath);
 
-    };
+//     };
 
-};
+// };

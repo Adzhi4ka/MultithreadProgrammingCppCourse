@@ -22,8 +22,8 @@ namespace infrastructure::db::repositories {
             void addVersion(WriteUnitOfWork& wuov, FileVersion version);
             void removeOldVersions(WriteUnitOfWork& wuov, int64_t fileId, int32_t keepLastN);
 
-            std::vector<FileVersion> getVersions(UnitOfWork& uov, int64_t fileId);
-            FileVersion getVersion(UnitOfWork& uov, int64_t fileId, int32_t version);
+            std::vector<FileVersion> getVersions(UnitOfWork& uow, int64_t fileId);
+            FileVersion getVersion(UnitOfWork& uow, int64_t fileId, int32_t version);
 
     };
 

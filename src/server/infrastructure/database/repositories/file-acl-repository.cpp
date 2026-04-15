@@ -1,6 +1,7 @@
 #include "file-acl-repository.h"
 
 #include <cstdint>
+#include <expected>
 
 namespace infrastructure::db::repositories {
 
@@ -14,79 +15,122 @@ namespace infrastructure::db::repositories {
                        .aclLevel = (AclLevel)stmt.getColumn(readIndex++).getInt()};
     }
 
-    void FileAclRepository::grant(WriteUnitOfWork& wuov, FileAcl fileAcl) {
+    RepositoryOpResult<void> FileAclRepository::grant(WriteUnitOfWork& wuov, FileAcl fileAcl) {
         constexpr const char* const sql = {
             "INSERT INTO file_acl "
                 "(file_id, group_id, acl_level) "
             "VALUES (?, ?, ?);"
         };
 
-        SQLite::Statement statement(wuov.connection(), sql);
-        {
-            int bindIndex = 1;
-            statement.bind(bindIndex++, fileAcl.fileId);
-            statement.bind(bindIndex++, fileAcl.groupId);
-            statement.bind(bindIndex++, (int32_t)fileAcl.aclLevel);
-        }
+        try {
+            SQLite::Statement statement(wuov.connection(), sql);
+            {
+                int bindIndex = 1;
+                statement.bind(bindIndex++, fileAcl.fileId);
+                statement.bind(bindIndex++, fileAcl.groupId);
+                statement.bind(bindIndex++, (int32_t)fileAcl.aclLevel);
+            }
 
-        statement.executeStep();
+            statement.exec();
+            return {};
+        } catch (const SQLite::Exception&) {
+            return std::unexpected(RepositoryError::InternalError);
+        }
     }
 
-    void FileAclRepository::revoke(WriteUnitOfWork& wuov, int64_t fileId, int64_t groupId) {
+    RepositoryOpResult<void> FileAclRepository::revoke(WriteUnitOfWork& wuov, int64_t fileId, int64_t groupId) {
         constexpr const char* const sql = {
             "DELETE FROM file_acl "
             "WHERE file_id = ? AND group_id = ?;"
         };
 
-        SQLite::Statement statement(wuov.connection(), sql);
-        {
-            int bindIndex = 1;
-            statement.bind(bindIndex++, fileId);
-            statement.bind(bindIndex++, groupId);
-        }
+        try {
+            SQLite::Statement statement(wuov.connection(), sql);
+            {
+                int bindIndex = 1;
+                statement.bind(bindIndex++, fileId);
+                statement.bind(bindIndex++, groupId);
+            }
 
-        statement.executeStep();
+            statement.executeStep();
+            return {};
+        } catch (const SQLite::Exception&) {
+            return std::unexpected(RepositoryError::InternalError);
+        }
     }
 
-    std::vector<FileAcl> FileAclRepository::getFileAcl(UnitOfWork& uov, int64_t fileId) {
+    RepositoryOpResult<AclLevel> FileAclRepository::getFileAcl(UnitOfWork& uow, int64_t fileId, int64_t groupId) {
+        constexpr const char* const sql = {
+            "SELECT acl_level "
+            "FROM file_acl "
+            "WHERE file_id = ? AND group_id = ?;"
+        };
+
+        try {
+            SQLite::Statement statement(uow.connection(), sql);
+            {
+                int bindIndex = 1;
+                statement.bind(bindIndex++, fileId);
+                statement.bind(bindIndex++, groupId);
+            }
+
+            if (!statement.executeStep()) {
+                return std::unexpected(RepositoryError::NotFound);
+            }
+
+            return (AclLevel)statement.getColumn(0).getInt();
+        } catch (const SQLite::Exception&) {
+            return std::unexpected(RepositoryError::InternalError);
+        }
+    }
+
+    RepositoryOpResult<std::vector<FileAcl>> FileAclRepository::getFileAclsToFileId(UnitOfWork& uow, int64_t fileId) {
         constexpr const char* const sql = {
             "SELECT file_id, group_id, acl_level "
             "FROM file_acl "
             "WHERE file_id = ?;"
         };
 
-        SQLite::Statement statement(uov.connection(), sql);
-        {
-            int bindIndex = 1;
-            statement.bind(bindIndex++, fileId);
-        }
+        try {
+            SQLite::Statement statement(uow.connection(), sql);
+            {
+                int bindIndex = 1;
+                statement.bind(bindIndex++, fileId);
+            }
 
-        std::vector<FileAcl> fileAcls;
-        while (statement.executeStep()) {
-            fileAcls.emplace_back(readFromStatement(statement));
-        }
+            std::vector<FileAcl> fileAcls;
+            while (statement.executeStep()) {
+                fileAcls.emplace_back(readFromStatement(statement));
+            }
 
-        return fileAcls;
+            return fileAcls;
+        } catch (const SQLite::Exception&) {
+            return std::unexpected(RepositoryError::InternalError);
+        }
     }
 
-    std::vector<FileAcl> FileAclRepository::getGroupAcl(UnitOfWork& uov, int64_t groupId) {
+    RepositoryOpResult<std::vector<FileAcl>> FileAclRepository::getGroupFileAcls(UnitOfWork& uow, int64_t groupId) {
         constexpr const char* const sql = {
             "SELECT file_id, group_id, acl_level "
             "FROM file_acl "
             "WHERE group_id = ?;"
         };
 
-        SQLite::Statement statement(uov.connection(), sql);
-        {
-            int bindIndex = 1;
-            statement.bind(bindIndex++, groupId);
-        }
+        try {
+            SQLite::Statement statement(uow.connection(), sql);
+            {
+                int bindIndex = 1;
+                statement.bind(bindIndex++, groupId);
+            }
 
-        std::vector<FileAcl> fileAcls;
-        while (statement.executeStep()) {
-            fileAcls.emplace_back(readFromStatement(statement));
-        }
+            std::vector<FileAcl> fileAcls;
+            while (statement.executeStep()) {
+                fileAcls.emplace_back(readFromStatement(statement));
+            }
 
-        return fileAcls;
+            return fileAcls;
+        } catch (const SQLite::Exception&) {
+            return std::unexpected(RepositoryError::InternalError);
+        }
     }
 }

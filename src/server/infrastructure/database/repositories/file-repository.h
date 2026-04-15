@@ -23,8 +23,8 @@ namespace infrastructure::db::repositories {
             void update(WriteUnitOfWork& wuov, File file);
             void remove(WriteUnitOfWork& wuov, int64_t id);
 
-            File getById(UnitOfWork& uov, int64_t id);
-            std::vector<File> getAll(UnitOfWork& uov);
+            File getById(UnitOfWork& uow, int64_t id);
+            std::vector<File> getAll(UnitOfWork& uow);
 
     };
 

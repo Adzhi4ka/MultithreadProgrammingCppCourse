@@ -24,8 +24,8 @@ namespace infrastructure::db::repositories {
             void addUserToGroup(WriteUnitOfWork& wuov, UserGroup userGroup);
             void removeUserFromGroup(WriteUnitOfWork& wuov, UserGroup userGroup);
 
-            std::vector<int64_t> getGroupIdsOfUser(UnitOfWork& uov, int64_t userId);
-            std::vector<int64_t> getUserIdsOfGroup(UnitOfWork& uov, int64_t groupId);
+            std::vector<int64_t> getGroupIdsOfUser(UnitOfWork& uow, int64_t userId);
+            std::vector<int64_t> getUserIdsOfGroup(UnitOfWork& uow, int64_t groupId);
 
     };
 

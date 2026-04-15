@@ -22,9 +22,9 @@ namespace infrastructure::db::repositories {
             void create(WriteUnitOfWork& wuov, Group group);
             void remove(WriteUnitOfWork& wuov, int64_t id);
 
-            Group getById(UnitOfWork& uov, int64_t id);
-            Group getByName(UnitOfWork& uov, const std::string& name);
-            std::vector<Group> getAll(UnitOfWork& uov);
+            Group getById(UnitOfWork& uow, int64_t id);
+            Group getByName(UnitOfWork& uow, const std::string& name);
+            std::vector<Group> getAll(UnitOfWork& uow);
 
     };
 

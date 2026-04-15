@@ -66,14 +66,14 @@ namespace infrastructure::db::repositories {
         statement.executeStep();
     }
 
-    User UserRepository::getById(UnitOfWork& uov, int64_t id) {
+    User UserRepository::getById(UnitOfWork& uow, int64_t id) {
         constexpr const char* const sql = {
             "SELECT id, login, password_hash "
             "FROM users "
             "WHERE id = ?;"
         };
 
-        SQLite::Statement statement(uov.connection(), sql);
+        SQLite::Statement statement(uow.connection(), sql);
         {
             int bindIndex = 1;
             statement.bind(bindIndex++, id);
@@ -84,14 +84,14 @@ namespace infrastructure::db::repositories {
         return readFromStatement(statement);
     }
 
-    User UserRepository::getByLogin(UnitOfWork& uov, const std::string& login) {
+    User UserRepository::getByLogin(UnitOfWork& uow, const std::string& login) {
         constexpr const char* const sql = {
             "SELECT id, login, password_hash "
             "FROM users "
             "WHERE login = ?;"
         };
 
-        SQLite::Statement statement(uov.connection(), sql);
+        SQLite::Statement statement(uow.connection(), sql);
         {
             int bindIndex = 1;
             statement.bindNoCopy(bindIndex++, login);
@@ -102,13 +102,13 @@ namespace infrastructure::db::repositories {
         return readFromStatement(statement);
     }
 
-    std::vector<User> UserRepository::getAll(UnitOfWork& uov) {
+    std::vector<User> UserRepository::getAll(UnitOfWork& uow) {
         constexpr const char* const sql = {
             "SELECT id, login, password_hash "
             "FROM users;"
         };
 
-        SQLite::Statement statement(uov.connection(), sql);
+        SQLite::Statement statement(uow.connection(), sql);
 
         std::vector<User> users;
         while (statement.executeStep()) {

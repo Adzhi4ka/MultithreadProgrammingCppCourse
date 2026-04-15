@@ -5,8 +5,9 @@
 namespace domain::models {
 
     enum class AclLevel : int8_t {
-        READ_ONLY = 0,
-        READ_WRITE = 1,
+        NO_PROPERTY = 0,
+        READ_ONLY = 1,
+        READ_WRITE = 2,
     };
 
     struct FileAcl {
