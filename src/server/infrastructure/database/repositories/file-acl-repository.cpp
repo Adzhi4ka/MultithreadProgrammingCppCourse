@@ -1,8 +1,5 @@
 #include "file-acl-repository.h"
 
-#include <cstdint>
-#include <expected>
-
 namespace infrastructure::db::repositories {
 
     using namespace infrastructure::db::sqlite;
@@ -10,12 +7,14 @@ namespace infrastructure::db::repositories {
 
     inline FileAcl readFromStatement(const SQLite::Statement& stmt) {
         int readIndex = 0;
-        return FileAcl{.fileId = stmt.getColumn(readIndex++),
-                       .groupId = stmt.getColumn(readIndex++),
-                       .aclLevel = (AclLevel)stmt.getColumn(readIndex++).getInt()};
+        return FileAcl{
+            .fileId = stmt.getColumn(readIndex++).getInt64(),
+            .groupId = stmt.getColumn(readIndex++).getInt64(),
+            .aclLevel = (AclLevel)stmt.getColumn(readIndex++).getInt()
+        };
     }
 
-    RepositoryOpResult<void> FileAclRepository::grant(WriteUnitOfWork& wuov, FileAcl fileAcl) {
+    PersistenceResult<void> FileAclRepository::grant(WriteUnitOfWork& wuov, FileAcl fileAcl) {
         constexpr const char* const sql = {
             "INSERT INTO file_acl "
                 "(file_id, group_id, acl_level) "
@@ -33,12 +32,12 @@ namespace infrastructure::db::repositories {
 
             statement.exec();
             return {};
-        } catch (const SQLite::Exception&) {
-            return std::unexpected(RepositoryError::InternalError);
+        } catch (const SQLite::Exception& ex) {
+            return std::unexpected(mapSqliteException(ex));
         }
     }
 
-    RepositoryOpResult<void> FileAclRepository::revoke(WriteUnitOfWork& wuov, int64_t fileId, int64_t groupId) {
+    PersistenceResult<void> FileAclRepository::revoke(WriteUnitOfWork& wuov, int64_t fileId, int64_t groupId) {
         constexpr const char* const sql = {
             "DELETE FROM file_acl "
             "WHERE file_id = ? AND group_id = ?;"
@@ -52,14 +51,19 @@ namespace infrastructure::db::repositories {
                 statement.bind(bindIndex++, groupId);
             }
 
-            statement.executeStep();
+            statement.exec();
+
+            if (wuov.connection().getChanges() == 0) {
+                return std::unexpected(PersistenceError::NotFound);
+            }
+
             return {};
-        } catch (const SQLite::Exception&) {
-            return std::unexpected(RepositoryError::InternalError);
+        } catch (const SQLite::Exception& ex) {
+            return std::unexpected(mapSqliteException(ex));
         }
     }
 
-    RepositoryOpResult<AclLevel> FileAclRepository::getFileAcl(UnitOfWork& uow, int64_t fileId, int64_t groupId) {
+    PersistenceResult<AclLevel> FileAclRepository::getFileAcl(UnitOfWork& uow, int64_t fileId, int64_t groupId) {
         constexpr const char* const sql = {
             "SELECT acl_level "
             "FROM file_acl "
@@ -75,16 +79,16 @@ namespace infrastructure::db::repositories {
             }
 
             if (!statement.executeStep()) {
-                return std::unexpected(RepositoryError::NotFound);
+                return std::unexpected(PersistenceError::NotFound);
             }
 
             return (AclLevel)statement.getColumn(0).getInt();
-        } catch (const SQLite::Exception&) {
-            return std::unexpected(RepositoryError::InternalError);
+        } catch (const SQLite::Exception& ex) {
+            return std::unexpected(mapSqliteException(ex));
         }
     }
 
-    RepositoryOpResult<std::vector<FileAcl>> FileAclRepository::getFileAclsToFileId(UnitOfWork& uow, int64_t fileId) {
+    PersistenceResult<std::vector<FileAcl>> FileAclRepository::getFileAclsToFileId(UnitOfWork& uow, int64_t fileId) {
         constexpr const char* const sql = {
             "SELECT file_id, group_id, acl_level "
             "FROM file_acl "
@@ -104,12 +108,12 @@ namespace infrastructure::db::repositories {
             }
 
             return fileAcls;
-        } catch (const SQLite::Exception&) {
-            return std::unexpected(RepositoryError::InternalError);
+        } catch (const SQLite::Exception& ex) {
+            return std::unexpected(mapSqliteException(ex));
         }
     }
 
-    RepositoryOpResult<std::vector<FileAcl>> FileAclRepository::getGroupFileAcls(UnitOfWork& uow, int64_t groupId) {
+    PersistenceResult<std::vector<FileAcl>> FileAclRepository::getGroupFileAcls(UnitOfWork& uow, int64_t groupId) {
         constexpr const char* const sql = {
             "SELECT file_id, group_id, acl_level "
             "FROM file_acl "
@@ -129,8 +133,9 @@ namespace infrastructure::db::repositories {
             }
 
             return fileAcls;
-        } catch (const SQLite::Exception&) {
-            return std::unexpected(RepositoryError::InternalError);
+        } catch (const SQLite::Exception& ex) {
+            return std::unexpected(mapSqliteException(ex));
         }
     }
+
 }

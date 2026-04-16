@@ -1,7 +1,5 @@
 #include "user-repository.h"
 
-#include <cstdint>
-
 namespace infrastructure::db::repositories {
 
     using namespace infrastructure::db::sqlite;
@@ -9,30 +7,37 @@ namespace infrastructure::db::repositories {
 
     inline User readFromStatement(const SQLite::Statement& stmt) {
         int readIndex = 0;
-        return User{.id = stmt.getColumn(readIndex++),
-                    .login = stmt.getColumn(readIndex++),
-                    .passwordHash = stmt.getColumn(readIndex++)};
+        return User{
+            .id = stmt.getColumn(readIndex++),
+            .login = stmt.getColumn(readIndex++),
+            .passwordHash = stmt.getColumn(readIndex++)
+        };
     }
 
-    void UserRepository::create(WriteUnitOfWork& wuov, User user) {
+    PersistenceResult<void> UserRepository::create(WriteUnitOfWork& wuov, User user) {
         constexpr const char* const sql = {
             "INSERT INTO users "
                 "(id, login, password_hash) "
             "VALUES (?, ?, ?);"
         };
 
-        SQLite::Statement statement(wuov.connection(), sql);
-        {
-            int bindIndex = 1;
-            statement.bind(bindIndex++, user.id);
-            statement.bindNoCopy(bindIndex++, user.login);
-            statement.bind(bindIndex++, user.passwordHash);
-        }
+        try {
+            SQLite::Statement statement(wuov.connection(), sql);
+            {
+                int bindIndex = 1;
+                statement.bind(bindIndex++, user.id);
+                statement.bindNoCopy(bindIndex++, user.login);
+                statement.bind(bindIndex++, user.passwordHash);
+            }
 
-        statement.executeStep();
+            statement.exec();
+            return {};
+        } catch (const SQLite::Exception& ex) {
+            return std::unexpected(mapSqliteException(ex));
+        }
     }
 
-    void UserRepository::update(WriteUnitOfWork& wuov, User user) {
+    PersistenceResult<void> UserRepository::update(WriteUnitOfWork& wuov, User user) {
         constexpr const char* const sql = {
             "UPDATE users "
             "SET login = ?, "
@@ -40,82 +45,118 @@ namespace infrastructure::db::repositories {
             "WHERE id = ?;"
         };
 
-        SQLite::Statement statement(wuov.connection(), sql);
-        {
-            int bindIndex = 1;
-            statement.bindNoCopy(bindIndex++, user.login);
-            statement.bind(bindIndex++, user.passwordHash);
-            statement.bind(bindIndex++, user.id);
-        }
+        try {
+            SQLite::Statement statement(wuov.connection(), sql);
+            {
+                int bindIndex = 1;
+                statement.bindNoCopy(bindIndex++, user.login);
+                statement.bind(bindIndex++, user.passwordHash);
+                statement.bind(bindIndex++, user.id);
+            }
 
-        statement.executeStep();
+            statement.exec();
+
+            if (wuov.connection().getChanges() == 0) {
+                return std::unexpected(PersistenceError::NotFound);
+            }
+
+            return {};
+        } catch (const SQLite::Exception& ex) {
+            return std::unexpected(mapSqliteException(ex));
+        }
     }
 
-    void UserRepository::remove(WriteUnitOfWork& wuov, int64_t id) {
+    PersistenceResult<void> UserRepository::remove(WriteUnitOfWork& wuov, int64_t id) {
         constexpr const char* const sql = {
             "DELETE FROM users "
             "WHERE id = ?;"
         };
 
-        SQLite::Statement statement(wuov.connection(), sql);
-        {
-            int bindIndex = 1;
-            statement.bind(bindIndex++, id);
-        }
+        try {
+            SQLite::Statement statement(wuov.connection(), sql);
+            {
+                int bindIndex = 1;
+                statement.bind(bindIndex++, id);
+            }
 
-        statement.executeStep();
+            statement.exec();
+
+            if (wuov.connection().getChanges() == 0) {
+                return std::unexpected(PersistenceError::NotFound);
+            }
+
+            return {};
+        } catch (const SQLite::Exception& ex) {
+            return std::unexpected(mapSqliteException(ex));
+        }
     }
 
-    User UserRepository::getById(UnitOfWork& uow, int64_t id) {
+    PersistenceResult<User> UserRepository::getById(UnitOfWork& uow, int64_t id) {
         constexpr const char* const sql = {
             "SELECT id, login, password_hash "
             "FROM users "
             "WHERE id = ?;"
         };
 
-        SQLite::Statement statement(uow.connection(), sql);
-        {
-            int bindIndex = 1;
-            statement.bind(bindIndex++, id);
+        try {
+            SQLite::Statement statement(uow.connection(), sql);
+            {
+                int bindIndex = 1;
+                statement.bind(bindIndex++, id);
+            }
+
+            if (!statement.executeStep()) {
+                return std::unexpected(PersistenceError::NotFound);
+            }
+
+            return readFromStatement(statement);
+        } catch (const SQLite::Exception& ex) {
+            return std::unexpected(mapSqliteException(ex));
         }
-
-        statement.executeStep();
-
-        return readFromStatement(statement);
     }
 
-    User UserRepository::getByLogin(UnitOfWork& uow, const std::string& login) {
+    PersistenceResult<User> UserRepository::getByLogin(UnitOfWork& uow, const std::string& login) {
         constexpr const char* const sql = {
             "SELECT id, login, password_hash "
             "FROM users "
             "WHERE login = ?;"
         };
 
-        SQLite::Statement statement(uow.connection(), sql);
-        {
-            int bindIndex = 1;
-            statement.bindNoCopy(bindIndex++, login);
+        try {
+            SQLite::Statement statement(uow.connection(), sql);
+            {
+                int bindIndex = 1;
+                statement.bindNoCopy(bindIndex++, login);
+            }
+
+            if (!statement.executeStep()) {
+                return std::unexpected(PersistenceError::NotFound);
+            }
+
+            return readFromStatement(statement);
+        } catch (const SQLite::Exception& ex) {
+            return std::unexpected(mapSqliteException(ex));
         }
-
-        statement.executeStep();
-
-        return readFromStatement(statement);
     }
 
-    std::vector<User> UserRepository::getAll(UnitOfWork& uow) {
+    PersistenceResult<std::vector<User>> UserRepository::getAll(UnitOfWork& uow) {
         constexpr const char* const sql = {
             "SELECT id, login, password_hash "
             "FROM users;"
         };
 
-        SQLite::Statement statement(uow.connection(), sql);
+        try {
+            SQLite::Statement statement(uow.connection(), sql);
 
-        std::vector<User> users;
-        while (statement.executeStep()) {
-            users.emplace_back(readFromStatement(statement));
+            std::vector<User> users;
+            while (statement.executeStep()) {
+                users.emplace_back(readFromStatement(statement));
+            }
+
+            return users;
+        } catch (const SQLite::Exception& ex) {
+            return std::unexpected(mapSqliteException(ex));
         }
-
-        return users;
     }
 
 }

@@ -1,6 +1,8 @@
 #pragma once
 
+#include "infrastructure/database/repositories/persistence-result.h"
 #include "infrastructure/database/sqlite/sqlite-database.h"
+
 #include "domain/models/file.h"
 
 #include <cstdint>
@@ -19,12 +21,12 @@ namespace infrastructure::db::repositories {
             explicit FileRepository(SqliteDatabase& db)
                 : m_db(db) {}
 
-            void create(WriteUnitOfWork& wuov, File file);
-            void update(WriteUnitOfWork& wuov, File file);
-            void remove(WriteUnitOfWork& wuov, int64_t id);
+            PersistenceResult<void> create(WriteUnitOfWork& wuov, File file);
+            PersistenceResult<void> update(WriteUnitOfWork& wuov, File file);
+            PersistenceResult<void> remove(WriteUnitOfWork& wuov, int64_t id);
 
-            File getById(UnitOfWork& uow, int64_t id);
-            std::vector<File> getAll(UnitOfWork& uow);
+            PersistenceResult<File> getById(UnitOfWork& uow, int64_t id);
+            PersistenceResult<std::vector<File>> getAll(UnitOfWork& uow);
 
     };
 

@@ -1,7 +1,4 @@
 #include "file-repository.h"
-#include "domain/models/file.h"
-
-#include <cstdint>
 
 namespace infrastructure::db::repositories {
 
@@ -10,72 +7,89 @@ namespace infrastructure::db::repositories {
 
     inline File readFromStatement(const SQLite::Statement& stmt) {
         int readIndex = 0;
-        return File{.id = stmt.getColumn(readIndex++),
-                    .fullLogicalName = stmt.getColumn(readIndex++),
-                    .currentVersionId = stmt.getColumn(readIndex++),
-                    .maxVersionCount = stmt.getColumn(readIndex++),
-                    .createdAt = stmt.getColumn(readIndex++),
-                    .createdBy = stmt.getColumn(readIndex++)};
+        return File{
+            .id = stmt.getColumn(readIndex++),
+            .fullLogicalName = stmt.getColumn(readIndex++),
+            .currentVersionId = stmt.getColumn(readIndex++),
+            .maxVersionCount = stmt.getColumn(readIndex++),
+            .createdAt = stmt.getColumn(readIndex++),
+            .createdBy = stmt.getColumn(readIndex++)
+        };
     }
 
-    File FileRepository::getById(UnitOfWork& uow, int64_t id) {
+    PersistenceResult<File> FileRepository::getById(UnitOfWork& uow, int64_t id) {
         constexpr const char* const sql = {
             "SELECT id, full_logical_name, current_version_id, max_version_count, created_at, created_by "
             "FROM files "
             "WHERE id = ?;"
         };
 
-        SQLite::Statement statement(uow.connection(), sql);
-        {
-            int bindIndex = 1;
-            statement.bind(bindIndex++, id);
+        try {
+            SQLite::Statement statement(uow.connection(), sql);
+            {
+                int bindIndex = 1;
+                statement.bind(bindIndex++, id);
+            }
+
+            if (!statement.executeStep()) {
+                return std::unexpected(PersistenceError::NotFound);
+            }
+
+            return readFromStatement(statement);
+        } catch (const SQLite::Exception& ex) {
+            return std::unexpected(mapSqliteException(ex));
         }
-
-        statement.executeStep();
-
-        return readFromStatement(statement);
     }
 
-    std::vector<File> FileRepository::getAll(UnitOfWork& uow) {
+    PersistenceResult<std::vector<File>> FileRepository::getAll(UnitOfWork& uow) {
         constexpr const char* const sql = {
             "SELECT id, full_logical_name, current_version_id, max_version_count, created_at, created_by "
             "FROM files;"
         };
 
-        SQLite::Statement statement(uow.connection(), sql);
+        try {
+            SQLite::Statement statement(uow.connection(), sql);
 
-        std::vector<File> files;
+            std::vector<File> files;
 
-        while (statement.executeStep()) {
-            files.emplace_back(readFromStatement(statement));
+            while (statement.executeStep()) {
+                files.emplace_back(readFromStatement(statement));
+            }
+
+            return files;
+        } catch (const SQLite::Exception& ex) {
+            return std::unexpected(mapSqliteException(ex));
         }
-
-        return files;
     }
 
-    void FileRepository::create(WriteUnitOfWork& wuov, File file) {
+    PersistenceResult<void> FileRepository::create(WriteUnitOfWork& wuov, File file) {
         constexpr const char* const sql = {
             "INSERT INTO files "
                 "(id, full_logical_name, current_version_id, max_version_count, created_at, created_by) "
             "VALUES (?, ?, ?, ?, ?, ?);"
         };
 
-        SQLite::Statement statement(wuov.connection(), sql);
+        try {
+            SQLite::Statement statement(wuov.connection(), sql);
 
-        {
-            int bindIndex = 1;
-            statement.bind(bindIndex++, file.id);
-            statement.bindNoCopy(bindIndex++, file.fullLogicalName);
-            statement.bind(bindIndex++, file.currentVersionId);
-            statement.bind(bindIndex++, file.maxVersionCount);
-            statement.bind(bindIndex++, file.createdAt);
-            statement.bind(bindIndex++, file.createdBy);
+            {
+                int bindIndex = 1;
+                statement.bind(bindIndex++, file.id);
+                statement.bindNoCopy(bindIndex++, file.fullLogicalName);
+                statement.bind(bindIndex++, file.currentVersionId);
+                statement.bind(bindIndex++, file.maxVersionCount);
+                statement.bind(bindIndex++, file.createdAt);
+                statement.bind(bindIndex++, file.createdBy);
+            }
+
+            statement.exec();
+            return {};
+        } catch (const SQLite::Exception& ex) {
+            return std::unexpected(mapSqliteException(ex));
         }
-
-        statement.executeStep();
     }
 
-    void FileRepository::update(WriteUnitOfWork& wuov, File file) {
+    PersistenceResult<void> FileRepository::update(WriteUnitOfWork& wuov, File file) {
         constexpr const char* const sql = {
             "UPDATE files "
             "SET full_logical_name = ?, "
@@ -86,35 +100,55 @@ namespace infrastructure::db::repositories {
             "WHERE id = ?;"
         };
 
-        SQLite::Statement statement(wuov.connection(), sql);
+        try {
+            SQLite::Statement statement(wuov.connection(), sql);
 
-        {
-            int bindIndex = 1;
-            statement.bindNoCopy(bindIndex++, file.fullLogicalName);
-            statement.bind(bindIndex++, file.currentVersionId);
-            statement.bind(bindIndex++, file.maxVersionCount);
-            statement.bind(bindIndex++, file.createdAt);
-            statement.bind(bindIndex++, file.createdBy);
-            statement.bind(bindIndex++, file.id);
+            {
+                int bindIndex = 1;
+                statement.bindNoCopy(bindIndex++, file.fullLogicalName);
+                statement.bind(bindIndex++, file.currentVersionId);
+                statement.bind(bindIndex++, file.maxVersionCount);
+                statement.bind(bindIndex++, file.createdAt);
+                statement.bind(bindIndex++, file.createdBy);
+                statement.bind(bindIndex++, file.id);
+            }
+
+            statement.exec();
+
+            if (wuov.connection().getChanges() == 0) {
+                return std::unexpected(PersistenceError::NotFound);
+            }
+
+            return {};
+        } catch (const SQLite::Exception& ex) {
+            return std::unexpected(mapSqliteException(ex));
         }
-
-        statement.executeStep();
     }
 
-    void FileRepository::remove(WriteUnitOfWork& wuov, int64_t id) {
+    PersistenceResult<void> FileRepository::remove(WriteUnitOfWork& wuov, int64_t id) {
         constexpr const char* const sql = {
             "DELETE FROM files "
             "WHERE id = ?;"
         };
 
-        SQLite::Statement statement(wuov.connection(), sql);
+        try {
+            SQLite::Statement statement(wuov.connection(), sql);
 
-        {
-            int bindIndex = 1;
-            statement.bind(bindIndex++, id);
+            {
+                int bindIndex = 1;
+                statement.bind(bindIndex++, id);
+            }
+
+            statement.exec();
+
+            if (wuov.connection().getChanges() == 0) {
+                return std::unexpected(PersistenceError::NotFound);
+            }
+
+            return {};
+        } catch (const SQLite::Exception& ex) {
+            return std::unexpected(mapSqliteException(ex));
         }
-
-        statement.executeStep();
     }
 
 } // namespace infrastructure::db::repositories

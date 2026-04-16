@@ -1,17 +1,22 @@
 #include "file-lock-repository.h"
-#include "SQLiteCpp/Statement.h"
-#include "domain/models/file-lock.h"
-
-#include <cstdint>
 
 namespace infrastructure::db::repositories {
 
     using namespace infrastructure::db::sqlite;
     using namespace domain::models;
 
-    RepositoryOpResult<void> FileLockRepository::lock(WriteUnitOfWork& wuov, FileLock file) {
+    inline FileLock readFromStatement(const SQLite::Statement& stmt) {
+        int readIndex = 0;
+        return FileLock{
+            .fileId = stmt.getColumn(readIndex++).getInt64(),
+            .userId = stmt.getColumn(readIndex++).getInt64(),
+            .leaseUntil = stmt.getColumn(readIndex++).getInt64()
+        };
+    }
+
+    PersistenceResult<void> FileLockRepository::lock(WriteUnitOfWork& wuov, FileLock file) {
         constexpr const char* const sql = {
-            "INSERT INTO file_lock"
+            "INSERT INTO file_lock "
                 "(file_id, user_id, lease_until) "
             "VALUES (?, ?, ?);"
         };
@@ -27,66 +32,85 @@ namespace infrastructure::db::repositories {
 
             statement.exec();
             return {};
-        } catch (const SQLite::Exception&) {
-            return std::unexpected(RepositoryError::InternalError);
+        } catch (const SQLite::Exception& ex) {
+            return std::unexpected(mapSqliteException(ex));
         }
     }
 
-    RepositoryOpResult<void> FileLockRepository::unlock(WriteUnitOfWork& wuov, int64_t fileId) {
+    PersistenceResult<void> FileLockRepository::unlock(WriteUnitOfWork& wuov, int64_t fileId) {
         constexpr const char* const sql = {
             "DELETE FROM file_lock "
             "WHERE file_id = ?;"
         };
 
-        SQLite::Statement statement(wuov.connection(), sql);
+        try {
+            SQLite::Statement statement(wuov.connection(), sql);
+            {
+                int bindIndex = 1;
+                statement.bind(bindIndex++, fileId);
+            }
 
-        {
-            int bindIndex = 1;
-            statement.bind(bindIndex++, fileId);
+            statement.exec();
+
+            if (wuov.connection().getChanges() == 0) {
+                return std::unexpected(PersistenceError::NotFound);
+            }
+
+            return {};
+        } catch (const SQLite::Exception& ex) {
+            return std::unexpected(mapSqliteException(ex));
         }
-
-        statement.executeStep();
     }
 
-    RepositoryOpResult<FileLock> FileLockRepository::getLock(UnitOfWork& uow, int64_t fileId) {
+    PersistenceResult<FileLock> FileLockRepository::getLock(UnitOfWork& uow, int64_t fileId) {
         constexpr const char* const sql = {
             "SELECT file_id, user_id, lease_until "
             "FROM file_lock "
             "WHERE file_id = ?;"
         };
 
-        SQLite::Statement statement(uow.connection(), sql);
+        try {
+            SQLite::Statement statement(uow.connection(), sql);
+            {
+                int bindIndex = 1;
+                statement.bind(bindIndex++, fileId);
+            }
 
-        {
-            int bindIndex = 1;
-            statement.bind(bindIndex++, fileId);
+            if (!statement.executeStep()) {
+                return std::unexpected(PersistenceError::NotFound);
+            }
+
+            return readFromStatement(statement);
+        } catch (const SQLite::Exception& ex) {
+            return std::unexpected(mapSqliteException(ex));
         }
-
-        statement.executeStep();
-        
-        int readIndex = 0;
-
-        return FileLock{.fileId = statement.getColumn(readIndex++),
-                        .userId = statement.getColumn(readIndex++),
-                        .leaseUntil = statement.getColumn(readIndex++)};
     }
 
-    RepositoryOpResult<void> FileLockRepository::updateLease(WriteUnitOfWork& wuov, int64_t fileId, int64_t leaseUntil) {
+    PersistenceResult<void> FileLockRepository::updateLease(WriteUnitOfWork& wuov, int64_t fileId, int64_t leaseUntil) {
         constexpr const char* const sql = {
             "UPDATE file_lock "
             "SET lease_until = ? "
             "WHERE file_id = ?;"
         };
 
-        SQLite::Statement statement(wuov.connection(), sql);
- 
-        {
-            int bindIndex = 1;
-            statement.bind(bindIndex++, leaseUntil);
-            statement.bind(bindIndex++, fileId);
-        }
+        try {
+            SQLite::Statement statement(wuov.connection(), sql);
+            {
+                int bindIndex = 1;
+                statement.bind(bindIndex++, leaseUntil);
+                statement.bind(bindIndex++, fileId);
+            }
 
-        statement.executeStep();
+            statement.exec();
+
+            if (wuov.connection().getChanges() == 0) {
+                return std::unexpected(PersistenceError::NotFound);
+            }
+
+            return {};
+        } catch (const SQLite::Exception& ex) {
+            return std::unexpected(mapSqliteException(ex));
+        }
     }
 
 }

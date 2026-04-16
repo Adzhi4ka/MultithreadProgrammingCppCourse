@@ -1,9 +1,8 @@
 #pragma once
 
+#include "infrastructure/database/repositories/persistence-result.h"
 #include "infrastructure/database/sqlite/sqlite-database.h"
 
-#include "domain/models/user.h"
-#include "domain/models/group.h"
 #include "domain/models/user-group.h"
 
 #include <cstdint>
@@ -21,11 +20,11 @@ namespace infrastructure::db::repositories {
 
             explicit UserGroupRepository(SqliteDatabase& db) : m_db(db) {}
 
-            void addUserToGroup(WriteUnitOfWork& wuov, UserGroup userGroup);
-            void removeUserFromGroup(WriteUnitOfWork& wuov, UserGroup userGroup);
+            PersistenceResult<void> addUserToGroup(WriteUnitOfWork& wuov, UserGroup userGroup);
+            PersistenceResult<void> removeUserFromGroup(WriteUnitOfWork& wuov, UserGroup userGroup);
 
-            std::vector<int64_t> getGroupIdsOfUser(UnitOfWork& uow, int64_t userId);
-            std::vector<int64_t> getUserIdsOfGroup(UnitOfWork& uow, int64_t groupId);
+            PersistenceResult<std::vector<int64_t>> getGroupIdsOfUser(UnitOfWork& uow, int64_t userId);
+            PersistenceResult<std::vector<int64_t>> getUserIdsOfGroup(UnitOfWork& uow, int64_t groupId);
 
     };
 
