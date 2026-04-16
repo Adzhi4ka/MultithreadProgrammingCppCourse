@@ -13,6 +13,7 @@ namespace infrastructure::db::sqlite {
 
     class SqliteDatabase;
 
+    // по факту можно на статичный полиморфизм переделать, но пока это в дальний ящик
     class UnitOfWork {
 
         protected:

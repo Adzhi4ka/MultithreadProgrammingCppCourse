@@ -1,6 +1,6 @@
 #include "file-version-repository.h"
 
-namespace infrastructure::db::repositories {
+namespace infrastructure::repositories {
 
     using namespace infrastructure::db::sqlite;
     using namespace domain::models;
@@ -37,6 +37,33 @@ namespace infrastructure::db::repositories {
             }
 
             statement.exec();
+            return {};
+        } catch (const SQLite::Exception& ex) {
+            return std::unexpected(mapSqliteException(ex));
+        }
+    }
+
+    PersistenceResult<void> updateName(WriteUnitOfWork& wuov, int64_t versionId, const std::string& name) {
+        constexpr const char* const sql = {
+            "UPDATE file_versions "
+            "SET logical_name_snapshot = ? "
+            "WHERE id = ?;"
+        };
+
+        try {
+            SQLite::Statement statement(wuov.connection(), sql);
+            {
+                int bindIndex = 1;
+                statement.bindNoCopy(bindIndex++, name);
+                statement.bind(bindIndex++, versionId);
+            }
+
+            statement.exec();
+
+            if (wuov.connection().getChanges() == 0) {
+                return std::unexpected(PersistenceError::NotFound);
+            }
+
             return {};
         } catch (const SQLite::Exception& ex) {
             return std::unexpected(mapSqliteException(ex));
@@ -99,16 +126,39 @@ namespace infrastructure::db::repositories {
         }
     }
 
-    PersistenceResult<FileVersion> FileVersionRepository::getVersion(UnitOfWork& uow, int64_t fileId, int32_t version) {
+    PersistenceResult<FileVersion> FileVersionRepository::getVersion(UnitOfWork& uow, int64_t versionId) {
         constexpr const char* const sql = {
             "SELECT id, file_id, version, logical_name_snapshot, physical_path_name, created_at "
+            "FROM file_versions "
+            "WHERE id = ?;"
+        };
+
+        try {
+            SQLite::Statement statement(uow.connection(), sql);
+            {
+                int bindIndex = 1;
+                statement.bind(bindIndex++, versionId);
+            }
+
+            if (!statement.executeStep()) {
+                return std::unexpected(PersistenceError::NotFound);
+            }
+
+            return readFromStatement(statement);
+        } catch (const SQLite::Exception& ex) {
+            return std::unexpected(mapSqliteException(ex));
+        }
+    }
+
+    PersistenceResult<int64_t> FileVersionRepository::getVersionId(UnitOfWork& uow, int64_t fileId, int32_t version) {
+        constexpr const char* const sql = {
+            "SELECT id "
             "FROM file_versions "
             "WHERE file_id = ? AND version = ?;"
         };
 
         try {
             SQLite::Statement statement(uow.connection(), sql);
-
             {
                 int bindIndex = 1;
                 statement.bind(bindIndex++, fileId);
@@ -119,7 +169,7 @@ namespace infrastructure::db::repositories {
                 return std::unexpected(PersistenceError::NotFound);
             }
 
-            return readFromStatement(statement);
+            return statement.getColumn(0).getInt64();
         } catch (const SQLite::Exception& ex) {
             return std::unexpected(mapSqliteException(ex));
         }

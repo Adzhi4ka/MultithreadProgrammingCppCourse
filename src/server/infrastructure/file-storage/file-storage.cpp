@@ -8,7 +8,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-namespace infrastructure::db::file_storage {
+namespace infrastructure::file_storage {
 
         FileStorage::FileStorage(int fd) noexcept : m_fd(fd) {}
     
@@ -21,7 +21,13 @@ namespace infrastructure::db::file_storage {
         FileStorage::FileStorage(FileStorage&& other) noexcept : m_fd(std::exchange(other.m_fd, kInvalidFd)) {}
 
         FileStorage& FileStorage::operator=(FileStorage&& other) noexcept {
-            m_fd = std::exchange(other.m_fd, kInvalidFd);
+            if (this != &other) {
+                if (m_fd != kInvalidFd) {
+                    ::close(m_fd);
+                }
+                m_fd = std::exchange(other.m_fd, kInvalidFd);
+            }
+
             return *this;
         }
 
@@ -38,7 +44,7 @@ namespace infrastructure::db::file_storage {
         }
 
         FileStorage FileStorage::createNew(uint64_t path, mode_t mode) {
-            return FileStorage(openImpl(fillAsciiHex(path), O_CREAT | O_EXCL | O_WRONLY, mode));
+            return FileStorage(openImpl(fillAsciiHex(path), O_CREAT | O_EXCL | O_RDWR, mode));
         }
 
         int FileStorage::openImpl(std::array<char, 124> path, int flags, mode_t mode) {
@@ -57,6 +63,14 @@ namespace infrastructure::db::file_storage {
             }
 
             return fd;
+        }
+
+        void FileStorage::remove(uint64_t path) {
+            auto pathBuf = fillAsciiHex(path);
+
+            if (::unlink(pathBuf.data()) == -1) {
+                throw std::system_error(errno, std::generic_category(), pathBuf.data());
+            }
         }
 
         auto FileStorage::size() const {

@@ -1,39 +1,47 @@
 #pragma once
 
 #include "domain/models/file.h"
-#include "domain/models/file-version.h"
+#include "domain/services/service-result.h"
+
+#include "infrastructure/database/sqlite/sqlite-database.h"
+#include "infrastructure/repositories/file-repository.h"
+#include "infrastructure/repositories/file-version-repository.h"
 
 #include <cstdint>
-#include <optional>
 #include <string>
-#include <vector>
 
-namespace domain::service {
+namespace domain::services {
+
+    using namespace infrastructure::db;
+    using namespace infrastructure::repositories;
+    using namespace domain::models;
 
     class FileService {
 
+            static constexpr uint32_t kDefaultMaxVersionCount = 10;
+
+            sqlite::SqliteDatabase& m_database;
+            FileRepository& m_fileRepo;
+            FileVersionRepository& m_fileVersionRepo;
 
         public:
 
-            int64_t createFile(const std::string& logicalName, int64_t createdByUser);
+            FileService(sqlite::SqliteDatabase& database,
+                        FileRepository& fileRepo,
+                        FileVersionRepository& fileVersionRepo) noexcept;
 
-            std::optional<File> getFileById(int64_t fileId);
+            ServiceResult<int64_t> create(std::string logicalName,
+                                          int64_t createdByUser,
+                                          uint64_t physicalPath,
+                                          uint32_t maxVersionCount = kDefaultMaxVersionCount);
 
-            std::optional<File> getFileByLogicalName(const std::string& name);
+            ServiceResult<File> getById(int64_t fileId);
+            ServiceResult<File> getByLogicalName(const std::string& logicalName);
 
-            std::optional<FileVersion> getCurrentVersion(int64_t fileId);
-            std::vector<FileVersion> getAllVersions(int64_t fileId);
+            ServiceResult<void> rename(int64_t fileId, std::string newLogicalName);
 
-            void rename(int64_t fileId, const std::string& newLogicalName);
+            ServiceResult<void> remove(int64_t fileId);
 
-            int64_t createNewVersion(int64_t fileId, const std::string&, uint64_t physicalKey);
-
-            struct ForkResult {int64_t newFileId; int64_t newVersionId;};
-            ForkResult forkFromOldVersion(int64_t sourceFileId, uint32_t sourceVersionNumber, const std::string& newLogicalName, int64_t createdBy);
-
-            void deleteFile(int64_t fileId);
-
-            std::vector<uint64_t> getAllUsedPhysicalKeys() const;
     };
 
-};
+}

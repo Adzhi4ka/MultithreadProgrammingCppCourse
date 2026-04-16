@@ -1,24 +1,20 @@
 #pragma once
 
-#include "infrastructure/database/repositories/persistence-result.h"
+#include "infrastructure/repositories/persistence-result.h"
 #include "infrastructure/database/sqlite/sqlite-database.h"
 
 #include "domain/models/user.h"
 
 #include <cstdint>
 
-namespace infrastructure::db::repositories {
+namespace infrastructure::repositories {
 
     using namespace infrastructure::db::sqlite;
     using namespace domain::models;
 
     class UserRepository {
 
-            SqliteDatabase& m_db;
-
         public:
-
-            explicit UserRepository(SqliteDatabase& db) : m_db(db) {}
 
             PersistenceResult<void> create(WriteUnitOfWork& wuov, User user);
             PersistenceResult<void> update(WriteUnitOfWork& wuov, User user);

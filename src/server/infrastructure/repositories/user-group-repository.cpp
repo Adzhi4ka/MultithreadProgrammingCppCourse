@@ -1,6 +1,6 @@
 #include "user-group-repository.h"
 
-namespace infrastructure::db::repositories {
+namespace infrastructure::repositories {
 
     using namespace infrastructure::db::sqlite;
     using namespace domain::models;

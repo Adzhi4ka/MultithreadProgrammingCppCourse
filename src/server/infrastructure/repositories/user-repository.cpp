@@ -1,6 +1,6 @@
 #include "user-repository.h"
 
-namespace infrastructure::db::repositories {
+namespace infrastructure::repositories {
 
     using namespace infrastructure::db::sqlite;
     using namespace domain::models;
@@ -27,7 +27,7 @@ namespace infrastructure::db::repositories {
                 int bindIndex = 1;
                 statement.bind(bindIndex++, user.id);
                 statement.bindNoCopy(bindIndex++, user.login);
-                statement.bind(bindIndex++, user.passwordHash);
+                statement.bindNoCopy(bindIndex++, user.passwordHash);
             }
 
             statement.exec();
@@ -50,7 +50,7 @@ namespace infrastructure::db::repositories {
             {
                 int bindIndex = 1;
                 statement.bindNoCopy(bindIndex++, user.login);
-                statement.bind(bindIndex++, user.passwordHash);
+                statement.bindNoCopy(bindIndex++, user.passwordHash);
                 statement.bind(bindIndex++, user.id);
             }
 

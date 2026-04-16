@@ -68,6 +68,7 @@ namespace infrastructure::db::sqlite::migrations {
             "file_id INTEGER PRIMARY KEY, "
             "user_id INTEGER NOT NULL, "
             "lease_until INTEGER NOT NULL, "
+            "lock_token INTEGER NOT NULL, "
             "FOREIGN KEY (file_id) REFERENCES files(id) ON DELETE CASCADE, "
             "FOREIGN KEY (user_id) REFERENCES users(id) "
         ");"

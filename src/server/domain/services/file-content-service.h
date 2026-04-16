@@ -1,31 +1,32 @@
-// #pragma once
+#pragma once
 
-// #include "infrastructure/file-storage/file-storage.h"
+#include "domain/services/service-result.h"
 
-// #include <string>
+#include "infrastructure/file-storage/file-storage.h"
 
-// namespace domain::services {
+namespace domain::services {
 
-//     using namespace infrastructure::db;
+    using namespace infrastructure::file_storage;
 
-//     class FileContentService {
+    struct CreatedFileStorage {
+        uint64_t physicalPath;
+        FileStorage storage;
+    };
 
-//         public:
+    class FileContentService {
 
-//             file_storage::FileStorage createNewFileStorage(const std::string& logicalPath) {
-//                 return file_storage::FileStorage::createNew(physicalPathFromLogical(logicalPath));
-//             }
+        public:
 
-//             file_storage::FileStorage getFileStorage(const std::string& logicalPath) {
-//                 return file_storage::FileStorage::(physicalPathFromLogical(logicalPath));
-//             }
+            ServiceResult<CreatedFileStorage> createNew();
 
-//             file_storage::FileStorage deleteFileStorage(const std::string& logicalPath);
+            ServiceResult<FileStorage> openRead(uint64_t physicalPath);
 
-//         private:
+            ServiceResult<void> remove(uint64_t physicalPath);
 
-//             uint64_t physicalPathFromLogical(const std::string& logicalPath);
+        private:
 
-//     };
+            uint64_t generatePhysicalName();
 
-// };
+    };
+
+};

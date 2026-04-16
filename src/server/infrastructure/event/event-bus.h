@@ -9,9 +9,14 @@
 
 namespace domain::notifications::events {
 
+    /*
+    
+        Заготовка под серверную часть, может быть на это прикручу еще кеширование
+    
+    */
+
     template<typename ...Events>
     class EventBus {
-
 
             template<typename Event>
             using Signal = boost::signals2::signal<void(const Event&)>;

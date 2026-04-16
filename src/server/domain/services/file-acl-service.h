@@ -1,66 +1,41 @@
 #pragma once
 
 #include "domain/models/file-acl.h"
+#include "domain/services/service-result.h"
 
-#include "infrastructure/database/repositories/file-acl-repository.h"
-#include "infrastructure/database/repositories/user-group-repository.h"
+#include "infrastructure/repositories/file-acl-repository.h"
+#include "infrastructure/repositories/user-group-repository.h"
 #include "infrastructure/database/sqlite/sqlite-database.h"
 
 #include <cstdint>
 
 namespace domain::services {
 
-    using namespace infrastructure::db;
+    using namespace infrastructure;
     using namespace domain::models;
 
     class FileAclService {
 
-            sqlite::SqliteDatabase& m_database;
+            db::sqlite::SqliteDatabase& m_database;
 
             repositories::FileAclRepository& m_fileAclRepo;
-
             repositories::UserGroupRepository& m_userGroupRepo;
         
         public:
 
-            AclLevel getGroupAclLevel(int64_t groupId, int64_t fileId) {
-                auto uow = m_database.createReadUnitOfWork();
+            FileAclService(
+                db::sqlite::SqliteDatabase& database,
+                repositories::FileAclRepository& fileAclRepo,
+                repositories::UserGroupRepository& userGroupRepo
+            ) noexcept;
 
-                return m_fileAclRepo.getFileAcl(uow, fileId, groupId);
-            }
+            ServiceResult<AclLevel> getGroupAclLevel(int64_t groupId, int64_t fileId);
 
-            AclLevel getUserAclLevel(int64_t userId, int64_t fileId) {
-                auto uow = m_database.createReadUnitOfWork();
+            ServiceResult<AclLevel> getUserAclLevel(int64_t userId, int64_t fileId);
 
-                AclLevel userAclLevel = models::AclLevel::NO_PROPERTY;
+            ServiceResult<void> createGroupAclLevel(int64_t fileId, int64_t groupId, AclLevel aclLevel);
 
-                const auto userGroupIds = m_userGroupRepo.getGroupIdsOfUser(uow, userId);
-
-                for (const auto groupId : userGroupIds) {
-                    auto aclLevel = m_fileAclRepo.getFileAcl(uow, fileId, groupId);
-                    if (aclLevel > userAclLevel) {
-                        userAclLevel = aclLevel;
-                    }
-
-                    if (userAclLevel == AclLevel::READ_WRITE) {
-                        return userAclLevel;
-                    }
-                }
-
-                return userAclLevel;
-            }
-
-            void createGroupAclLevel(int64_t fileId, int64_t groupId, AclLevel aclLevel) {
-                auto wuow = m_database.createWriteUnitOfWork();
-                m_fileAclRepo.grant(wuow, FileAcl{.fileId = fileId, .groupId = groupId, .aclLevel = aclLevel});
-                wuow.commit();
-            }
-
-            void removeGroupAclLevel(uint64_t fileId, uint64_t groupId) {
-                auto wuow = m_database.createWriteUnitOfWork();
-                m_fileAclRepo.revoke(wuow, fileId, groupId);
-                wuow.commit();
-            }
+            ServiceResult<void> removeGroupAclLevel(uint64_t fileId, uint64_t groupId);
 
     };
 

@@ -5,7 +5,7 @@
 
 #include <sys/types.h>
 
-namespace infrastructure::db::file_storage {
+namespace infrastructure::file_storage {
 
     class FileStorage {
 
@@ -27,8 +27,10 @@ namespace infrastructure::db::file_storage {
 
            ~FileStorage();
 
-            FileStorage(FileStorage&& other) noexcept;
+            FileStorage(const FileStorage& other) = delete;
+            FileStorage& operator=(const FileStorage& other) = delete;
 
+            FileStorage(FileStorage&& other) noexcept;
             FileStorage& operator=(FileStorage&& other) noexcept;
 
             static FileStorage openReadOnly(uint64_t path);
@@ -38,6 +40,8 @@ namespace infrastructure::db::file_storage {
             static FileStorage openReadWrite(uint64_t path);
 
             static FileStorage createNew(uint64_t path, mode_t mode = 0644);
+
+            static void remove(uint64_t path);
 
         private:
 

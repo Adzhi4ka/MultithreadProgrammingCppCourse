@@ -1,0 +1,72 @@
+#include "group-service.h"
+
+namespace domain::services {
+
+    using namespace infrastructure::db;
+    using namespace infrastructure::repositories;
+    using namespace domain::models;
+
+    GroupService::GroupService(sqlite::SqliteDatabase& database,
+                    GroupRepository& groupRepo,
+                    UserGroupRepository& userGroupRepo) noexcept
+        : m_database(database),
+          m_groupRepo(groupRepo),
+          m_userGroupRepo(userGroupRepo) {}
+
+    ServiceResult<int64_t> GroupService::createGroup(const std::string& groupName) {
+
+        auto wuow = m_database.createWriteUnitOfWork();
+        
+        int64_t newId = infrastructure::id_generator::generateId();
+
+        auto createResult = m_groupRepo.create(wuow, Group{.id = newId,
+                                                           .name = groupName});
+
+        if (!createResult) {
+            return std::unexpected(mapPersistenceError(createResult.error()));
+        }
+
+        wuow.commit();
+        return newId;
+    }
+
+    ServiceResult<void> GroupService::addUserToGroup(int64_t userId, int64_t groupId) {
+        auto wuow = m_database.createWriteUnitOfWork();
+
+        auto addResult = m_userGroupRepo.addUserToGroup(wuow, UserGroup{.userId = userId,
+                                                                        .groupId = groupId});
+
+        if (!addResult) {
+            return std::unexpected(mapPersistenceError(addResult.error()));
+        }
+
+        wuow.commit();
+        return {};
+    }
+
+    ServiceResult<void> GroupService::removeUserFromGroup(int64_t userId, int64_t groupId) {
+        auto wuow = m_database.createWriteUnitOfWork();
+
+        auto removeResult = m_userGroupRepo.removeUserFromGroup(wuow, UserGroup{.userId = userId,
+                                                                                .groupId = groupId});
+
+        if (!removeResult) {
+            return std::unexpected(mapPersistenceError(removeResult.error()));
+        }
+
+        wuow.commit();
+        return {};
+    }
+
+    ServiceResult<std::vector<int64_t>> GroupService::getUserGroups(int64_t userId) {
+        auto ruow = m_database.createReadUnitOfWork();
+
+        auto groupsResult = m_userGroupRepo.getGroupIdsOfUser(ruow, userId);
+        if (!groupsResult) {
+            return std::unexpected(mapPersistenceError(groupsResult.error()));
+        }
+
+        return *groupsResult;
+    }
+
+}

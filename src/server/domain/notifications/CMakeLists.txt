@@ -8,4 +8,5 @@ target_include_directories(server_domain_notification
 target_link_libraries(server_domain_notification
     INTERFACE
         server_domain_models
+        server_infrastructure
 )

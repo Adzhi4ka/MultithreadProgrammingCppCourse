@@ -1,6 +1,6 @@
 #include "file-repository.h"
 
-namespace infrastructure::db::repositories {
+namespace infrastructure::repositories {
 
     using namespace infrastructure::db::sqlite;
     using namespace domain::models;
@@ -29,6 +29,30 @@ namespace infrastructure::db::repositories {
             {
                 int bindIndex = 1;
                 statement.bind(bindIndex++, id);
+            }
+
+            if (!statement.executeStep()) {
+                return std::unexpected(PersistenceError::NotFound);
+            }
+
+            return readFromStatement(statement);
+        } catch (const SQLite::Exception& ex) {
+            return std::unexpected(mapSqliteException(ex));
+        }
+    }
+
+    PersistenceResult<File> FileRepository::getByName(UnitOfWork& uow, const std::string& name) {
+        constexpr const char* const sql = {
+            "SELECT id, full_logical_name, current_version_id, max_version_count, created_at, created_by "
+            "FROM files "
+            "WHERE full_logical_name = ?;"
+        };
+
+        try {
+            SQLite::Statement statement(uow.connection(), sql);
+            {
+                int bindIndex = 1;
+                statement.bindNoCopy(bindIndex++, name);
             }
 
             if (!statement.executeStep()) {
@@ -151,4 +175,4 @@ namespace infrastructure::db::repositories {
         }
     }
 
-} // namespace infrastructure::db::repositories
+} // namespace infrastructure::repositories

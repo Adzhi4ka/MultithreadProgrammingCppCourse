@@ -8,6 +8,7 @@ namespace domain::models {
         int64_t fileId;
         int64_t userId;
         int64_t leaseUntil;
+        int64_t lockToken;
     };
 
 }

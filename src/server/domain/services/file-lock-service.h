@@ -1,62 +1,43 @@
 #pragma once
 
 #include "domain/models/file-lock.h"
+#include "domain/services/service-result.h"
 
-#include "infrastructure/database/repositories/file-lock-repository.h"
+#include "infrastructure/repositories/file-lock-repository.h"
 #include "infrastructure/database/sqlite/sqlite-database.h"
 
-#include <chrono>
 #include <cstdint>
-#include <optional>
 
 namespace domain::services {
 
-        using namespace infrastructure::db;
-        using namespace domain::models;
+    using namespace infrastructure::db;
+    using namespace infrastructure::repositories;
+    using namespace domain::models;
 
     class FileLockService {
 
-            static constexpr int64_t defaultLockDuration = 3600;
+            static constexpr int64_t defaultLockDurationSec = 3600;
 
             sqlite::SqliteDatabase& m_database;
-
-            repositories::FileLockRepository& m_fileLockRepo;
+            FileLockRepository& m_fileLockRepo;
         
         public:
 
-            bool acquireLock(int64_t fileId, int64_t userId, int64_t lockDuration = defaultLockDuration) {
-                auto wouw = m_database.createWriteUnitOfWork();
+            FileLockService(sqlite::SqliteDatabase& database,
+                            FileLockRepository& fileLockRepo) noexcept;
 
-                m_fileLockRepo.lock(wouw, FileLock{.fileId = fileId,
-                                                   .userId = userId,
-                                                   .leaseUntil = std::chrono::steady_clock::now().time_since_epoch().count() + defaultLockDuration});
-                wouw.commit();
+            ServiceResult<FileLock> acquireLock(int64_t fileId,
+                                                int64_t userId,
+                                                int64_t lockDurationSec = defaultLockDurationSec);
 
-                return true;
-            }
+            ServiceResult<void> renewLock(int64_t fileId,
+                                          int64_t lockToken,
+                                          int64_t lockDurationSec = defaultLockDurationSec);
 
-            void renewLock(int64_t fileId, int64_t lockDuration = defaultLockDuration) {
-                auto wouw = m_database.createWriteUnitOfWork();
+            ServiceResult<void> releaseLock(int64_t fileId, int64_t lockToken);
 
-                m_fileLockRepo.updateLease(wouw, fileId, std::chrono::steady_clock::now().time_since_epoch().count() + defaultLockDuration);
-
-                wouw.commit();
-            }
-
-            void releaseLock(int64_t fileId) {
-                auto wouw = m_database.createWriteUnitOfWork();
-
-                m_fileLockRepo.unlock(wouw, fileId);
-
-                wouw.commit();
-            }
-
-            std::optional<FileLock> getActiveLock(int64_t fileId) {
-                auto rouw = m_database.createReadUnitOfWork();
-
-                return m_fileLockRepo.getLock(rouw, fileId);
-            }
+            ServiceResult<FileLock> getActiveLock(int64_t fileId);
 
     };
 
-};
+}

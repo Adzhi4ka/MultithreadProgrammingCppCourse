@@ -6,7 +6,7 @@
 #include <cstdint>
 #include <expected>
 
-namespace infrastructure::db::repositories {
+namespace infrastructure::repositories {
 
     enum class PersistenceError : uint8_t {
         NotFound,
@@ -37,4 +37,4 @@ namespace infrastructure::db::repositories {
 
     }
 
-} // namespace infrastructure::db::repositories
+} // namespace infrastructure::repositories
