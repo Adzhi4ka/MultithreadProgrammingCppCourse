@@ -11,23 +11,23 @@
 
 namespace domain::services {
 
-    using namespace infrastructure;
-    using namespace domain::models;
-
     class FileAclService {
 
-            db::sqlite::SqliteDatabase& m_database;
+            using SqliteDatabase = infrastructure::db::sqlite::SqliteDatabase;
+            using FileAclRepository = infrastructure::repositories::FileAclRepository;
+            using UserGroupRepository = infrastructure::repositories::UserGroupRepository;
+            using AclLevel = domain::models::AclLevel;
 
-            repositories::FileAclRepository& m_fileAclRepo;
-            repositories::UserGroupRepository& m_userGroupRepo;
+            SqliteDatabase& m_database;
+
+            FileAclRepository& m_fileAclRepo;
+            UserGroupRepository& m_userGroupRepo;
         
         public:
 
-            FileAclService(
-                db::sqlite::SqliteDatabase& database,
-                repositories::FileAclRepository& fileAclRepo,
-                repositories::UserGroupRepository& userGroupRepo
-            ) noexcept;
+            FileAclService(SqliteDatabase& database,
+                           FileAclRepository& fileAclRepo,
+                           UserGroupRepository& userGroupRepo) noexcept;
 
             ServiceResult<AclLevel> getGroupAclLevel(int64_t groupId, int64_t fileId);
 

@@ -13,8 +13,7 @@ namespace infrastructure::security {
     }
 
     inline std::string hashPassword(std::string_view rawPassword) {
-        std::string hashedPassword;
-        hashedPassword.reserve(crypto_pwhash_STRBYTES);
+        std::string hashedPassword(crypto_pwhash_STRBYTES, '\0');
 
         if (crypto_pwhash_str(hashedPassword.data(),
                               rawPassword.data(),
@@ -29,7 +28,6 @@ namespace infrastructure::security {
     }
 
     inline bool verifyPassword(std::string_view rawPassword, std::string_view storedHash) noexcept {
-
         return crypto_pwhash_str_verify(storedHash.data(), rawPassword.data(), rawPassword.size()) == 0;
     }
 

@@ -3,12 +3,11 @@
 #include "infrastructure/file-storage/file-storage.h"
 #include "infrastructure/id-generator/id-generator.h"
 
-#include <chrono>
-#include <expected>
+namespace {
+    using namespace infrastructure::file_storage;
+}
 
 namespace domain::services {
-
-    using namespace infrastructure::file_storage;
 
     ServiceResult<CreatedFileStorage> FileContentService::createNew() {
 
@@ -16,7 +15,7 @@ namespace domain::services {
         try {
             auto newFileStorage = FileStorage::createNew(physicalPath);
             return CreatedFileStorage{.physicalPath = physicalPath,
-                                        .storage = std::move(newFileStorage)};
+                                      .storage = std::move(newFileStorage)};
         } catch (const std::system_error& ex) {
             if (ex.code().value() == EEXIST) {
                 return std::unexpected(ServiceError::Conflict);

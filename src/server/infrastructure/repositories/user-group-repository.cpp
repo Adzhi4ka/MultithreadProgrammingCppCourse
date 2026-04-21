@@ -2,9 +2,6 @@
 
 namespace infrastructure::repositories {
 
-    using namespace infrastructure::db::sqlite;
-    using namespace domain::models;
-
     PersistenceResult<void> UserGroupRepository::addUserToGroup(WriteUnitOfWork& wuov, UserGroup userGroup) {
         constexpr const char* const sql = {
             "INSERT INTO user_group "

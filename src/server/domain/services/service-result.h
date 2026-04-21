@@ -1,3 +1,5 @@
+#pragma once
+
 #include "infrastructure/repositories/persistence-result.h"
 
 #include <cstdint>

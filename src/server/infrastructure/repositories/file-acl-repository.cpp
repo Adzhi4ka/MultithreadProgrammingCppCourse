@@ -1,6 +1,6 @@
 #include "file-acl-repository.h"
 
-namespace infrastructure::repositories {
+namespace {
 
     using namespace infrastructure::db::sqlite;
     using namespace domain::models;
@@ -13,6 +13,10 @@ namespace infrastructure::repositories {
             .aclLevel = (AclLevel)stmt.getColumn(readIndex++).getInt()
         };
     }
+
+}
+
+namespace infrastructure::repositories {
 
     PersistenceResult<void> FileAclRepository::grant(WriteUnitOfWork& wuov, FileAcl fileAcl) {
         constexpr const char* const sql = {

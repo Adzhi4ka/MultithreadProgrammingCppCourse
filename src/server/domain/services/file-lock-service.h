@@ -10,20 +10,20 @@
 
 namespace domain::services {
 
-    using namespace infrastructure::db;
-    using namespace infrastructure::repositories;
-    using namespace domain::models;
-
     class FileLockService {
+
+            using SqliteDatabase = infrastructure::db::sqlite::SqliteDatabase;
+            using FileLockRepository = infrastructure::repositories::FileLockRepository;
+            using FileLock = domain::models::FileLock;
 
             static constexpr int64_t defaultLockDurationSec = 3600;
 
-            sqlite::SqliteDatabase& m_database;
+            SqliteDatabase& m_database;
             FileLockRepository& m_fileLockRepo;
         
         public:
 
-            FileLockService(sqlite::SqliteDatabase& database,
+            FileLockService(SqliteDatabase& database,
                             FileLockRepository& fileLockRepo) noexcept;
 
             ServiceResult<FileLock> acquireLock(int64_t fileId,

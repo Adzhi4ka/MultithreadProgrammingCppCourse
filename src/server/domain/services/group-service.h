@@ -1,33 +1,29 @@
 #pragma once
 
-#include "domain/models/group.h"
-#include "domain/models/user-group.h"
 #include "domain/services/service-result.h"
 
 #include "infrastructure/database/sqlite/sqlite-database.h"
-#include "infrastructure/id-generator/id-generator.h"
 #include "infrastructure/repositories/group-repository.h"
 #include "infrastructure/repositories/user-group-repository.h"
 
 #include <cstdint>
-#include <string_view>
 #include <vector>
 
 namespace domain::services {
 
-    using namespace infrastructure::db;
-    using namespace infrastructure::repositories;
-    using namespace domain::models;
-
     class GroupService {
 
-            sqlite::SqliteDatabase& m_database;
+            using SqliteDatabase = infrastructure::db::sqlite::SqliteDatabase;
+            using GroupRepository = infrastructure::repositories::GroupRepository;
+            using UserGroupRepository = infrastructure::repositories::UserGroupRepository;
+
+            SqliteDatabase& m_database;
             GroupRepository& m_groupRepo;
             UserGroupRepository& m_userGroupRepo;
 
         public:
 
-            GroupService(sqlite::SqliteDatabase& database,
+            GroupService(SqliteDatabase& database,
                          GroupRepository& groupRepo,
                          UserGroupRepository& userGroupRepo) noexcept;
 

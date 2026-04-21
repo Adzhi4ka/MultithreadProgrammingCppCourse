@@ -1,17 +1,21 @@
 #include "group-repository.h"
 
-namespace infrastructure::repositories {
+namespace {
 
     using namespace infrastructure::db::sqlite;
     using namespace domain::models;
 
-    inline Group readFromStatement(const SQLite::Statement& stmt) {
+    inline Group readFromStatement(SQLite::Statement& stmt) {
         int readIndex = 0;
         return Group{
             .id = stmt.getColumn(readIndex++),
             .name = stmt.getColumn(readIndex++)
         };
     }
+
+}
+
+namespace infrastructure::repositories {
 
     PersistenceResult<void> GroupRepository::create(WriteUnitOfWork& wuov, Group group) {
         constexpr const char* const sql = {

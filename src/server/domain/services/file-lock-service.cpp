@@ -1,10 +1,9 @@
 #include "file-lock-service.h"
+
 #include "infrastructure/id-generator/id-generator.h"
 
-namespace domain::services {
+namespace {
 
-    using namespace infrastructure::db;
-    using namespace infrastructure::repositories;
     using namespace domain::models;
 
     inline int64_t unixNowSeconds() noexcept {
@@ -13,7 +12,11 @@ namespace domain::services {
         return duration_cast<seconds>(system_clock::now().time_since_epoch()).count();
     }
 
-    FileLockService::FileLockService(sqlite::SqliteDatabase& database,
+}
+
+namespace domain::services {
+
+    FileLockService::FileLockService(SqliteDatabase& database,
                                      FileLockRepository& fileLockRepo) noexcept
         : m_database(database),
           m_fileLockRepo(fileLockRepo) {}

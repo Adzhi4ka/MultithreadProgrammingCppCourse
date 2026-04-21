@@ -1,11 +1,11 @@
 #include "file-version-repository.h"
 
-namespace infrastructure::repositories {
+namespace {
 
     using namespace infrastructure::db::sqlite;
     using namespace domain::models;
 
-    inline FileVersion readFromStatement(const SQLite::Statement& stmt) {
+    inline FileVersion readFromStatement(SQLite::Statement& stmt) {
         int readIndex = 0;
         return FileVersion{
             .id = stmt.getColumn(readIndex++),
@@ -16,6 +16,10 @@ namespace infrastructure::repositories {
             .createdAt = stmt.getColumn(readIndex++)
         };
     }
+
+}
+
+namespace infrastructure::repositories {
 
     PersistenceResult<void> FileVersionRepository::addVersion(WriteUnitOfWork& wuov, FileVersion version) {
         constexpr const char* const sql = {
@@ -43,7 +47,7 @@ namespace infrastructure::repositories {
         }
     }
 
-    PersistenceResult<void> updateName(WriteUnitOfWork& wuov, int64_t versionId, const std::string& name) {
+    PersistenceResult<void> FileVersionRepository::updateName(WriteUnitOfWork& wuov, int64_t versionId, const std::string& name) {
         constexpr const char* const sql = {
             "UPDATE file_versions "
             "SET logical_name_snapshot = ? "

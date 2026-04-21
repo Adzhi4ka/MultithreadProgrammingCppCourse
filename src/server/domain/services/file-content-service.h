@@ -6,11 +6,9 @@
 
 namespace domain::services {
 
-    using namespace infrastructure::file_storage;
-
     struct CreatedFileStorage {
         uint64_t physicalPath;
-        FileStorage storage;
+        infrastructure::file_storage::FileStorage storage;
     };
 
     class FileContentService {
@@ -19,7 +17,7 @@ namespace domain::services {
 
             ServiceResult<CreatedFileStorage> createNew();
 
-            ServiceResult<FileStorage> openRead(uint64_t physicalPath);
+            ServiceResult<infrastructure::file_storage::FileStorage> openRead(uint64_t physicalPath);
 
             ServiceResult<void> remove(uint64_t physicalPath);
 
@@ -29,4 +27,4 @@ namespace domain::services {
 
     };
 
-};
+} // namespace domain::services

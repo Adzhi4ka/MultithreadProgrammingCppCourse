@@ -13,10 +13,10 @@
         {
             "name": "debug",
             "displayName": "Debug",
-            "description": "Debug: -g -O0 + strict warnings",
+            "description": "Debug: -g -O0 + strict warnings + sanitizers",
             "generator": "Ninja",
             "binaryDir": "${sourceDir}/build/debug",
-            "cacheVariables": 
+            "cacheVariables":
             {
                 "CMAKE_C_COMPILER": "clang",
                 "CMAKE_CXX_COMPILER": "clang++",
@@ -24,7 +24,9 @@
                 "CMAKE_CXX_STANDARD": "23",
                 "CMAKE_CXX_STANDARD_REQUIRED": "ON",
                 "CMAKE_CXX_EXTENSIONS": "OFF",
-                "CMAKE_CXX_FLAGS_DEBUG": "-g -O0 -Wall -Wextra",
+                "CMAKE_CXX_FLAGS_DEBUG": "-g -O0 -Wall -Wextra -fsanitize=address,undefined -fno-omit-frame-pointer",
+                "CMAKE_EXE_LINKER_FLAGS_DEBUG": "-fsanitize=address,undefined",
+                "CMAKE_SHARED_LINKER_FLAGS_DEBUG": "-fsanitize=address,undefined",
                 "BUILD_TESTING": "ON",
                 "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
             }
@@ -43,7 +45,7 @@
                 "CMAKE_CXX_STANDARD_REQUIRED": "ON",
                 "CMAKE_CXX_EXTENSIONS": "OFF",
                 "CMAKE_CXX_FLAGS_RELEASE": "-O3 -DNDEBUG -Wall -Wextra -march=native",
-                "BUILD_TESTING": "OFF",
+                "BUILD_TESTING": "ON",
                 "CMAKE_INTERPROCEDURAL_OPTIMIZATION":true
             }
         }

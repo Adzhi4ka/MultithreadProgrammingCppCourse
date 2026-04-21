@@ -12,21 +12,23 @@
 
 namespace domain::services {
 
-    using namespace infrastructure::db;
-    using namespace infrastructure::repositories;
-    using namespace domain::models;
-
     class FileService {
+
+            using SqliteDatabase = infrastructure::db::sqlite::SqliteDatabase;
+            using FileRepository = infrastructure::repositories::FileRepository;
+            using FileVersionRepository = infrastructure::repositories::FileVersionRepository;
+            using File = domain::models::File;
+            using FileVersion = domain::models::FileVersion;
 
             static constexpr uint32_t kDefaultMaxVersionCount = 10;
 
-            sqlite::SqliteDatabase& m_database;
+            SqliteDatabase& m_database;
             FileRepository& m_fileRepo;
             FileVersionRepository& m_fileVersionRepo;
 
         public:
 
-            FileService(sqlite::SqliteDatabase& database,
+            FileService(SqliteDatabase& database,
                         FileRepository& fileRepo,
                         FileVersionRepository& fileVersionRepo) noexcept;
 

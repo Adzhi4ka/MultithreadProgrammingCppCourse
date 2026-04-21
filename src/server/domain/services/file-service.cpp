@@ -4,9 +4,21 @@
 
 #include <chrono>
 
+namespace {
+
+    using namespace domain::models;
+
+    inline int64_t unixNowSeconds() noexcept {
+        using namespace std::chrono;
+
+        return duration_cast<seconds>(system_clock::now().time_since_epoch()).count();
+    }
+
+}
+
 namespace domain::services {
 
-    FileService::FileService(sqlite::SqliteDatabase& database,
+    FileService::FileService(SqliteDatabase& database,
                              FileRepository& fileRepo,
                              FileVersionRepository& fileVersionRepo) noexcept
     : m_database(database),
@@ -22,7 +34,7 @@ namespace domain::services {
 
         const int64_t fileId = infrastructure::id_generator::generateId();
         const int64_t versionId = infrastructure::id_generator::generateId();
-        const int64_t createdAt = std::chrono::system_clock::now().time_since_epoch().count();
+        const int64_t createdAt = unixNowSeconds();
 
         auto createFileResult = m_fileRepo.create(wuow, File{.id = fileId,
                                                              .fullLogicalName = logicalName,

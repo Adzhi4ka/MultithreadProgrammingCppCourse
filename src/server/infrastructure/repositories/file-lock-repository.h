@@ -9,10 +9,12 @@
 
 namespace infrastructure::repositories {
 
-    using namespace infrastructure::db::sqlite;
-    using namespace domain::models;
-
     class FileLockRepository {
+
+            using WriteUnitOfWork = infrastructure::db::sqlite::WriteUnitOfWork;
+            using ReadUnitOfWork = infrastructure::db::sqlite::ReadUnitOfWork;
+            using UnitOfWork = infrastructure::db::sqlite::UnitOfWork;
+            using FileLock = domain::models::FileLock;
 
         public:
 

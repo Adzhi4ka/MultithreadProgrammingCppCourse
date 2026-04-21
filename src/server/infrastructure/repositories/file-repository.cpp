@@ -1,11 +1,11 @@
 #include "file-repository.h"
 
-namespace infrastructure::repositories {
+namespace {
 
     using namespace infrastructure::db::sqlite;
     using namespace domain::models;
 
-    inline File readFromStatement(const SQLite::Statement& stmt) {
+    inline File readFromStatement(SQLite::Statement& stmt) {
         int readIndex = 0;
         return File{
             .id = stmt.getColumn(readIndex++),
@@ -16,6 +16,10 @@ namespace infrastructure::repositories {
             .createdBy = stmt.getColumn(readIndex++)
         };
     }
+
+}
+
+namespace infrastructure::repositories {
 
     PersistenceResult<File> FileRepository::getById(UnitOfWork& uow, int64_t id) {
         constexpr const char* const sql = {

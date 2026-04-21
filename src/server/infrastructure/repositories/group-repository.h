@@ -9,10 +9,12 @@
 
 namespace infrastructure::repositories {
 
-    using namespace infrastructure::db::sqlite;
-    using namespace domain::models;
-
     class GroupRepository {
+
+            using WriteUnitOfWork = infrastructure::db::sqlite::WriteUnitOfWork;
+            using ReadUnitOfWork = infrastructure::db::sqlite::ReadUnitOfWork;
+            using UnitOfWork = infrastructure::db::sqlite::UnitOfWork;
+            using Group = domain::models::Group;
 
         public:
 

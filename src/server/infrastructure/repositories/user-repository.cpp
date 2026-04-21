@@ -1,11 +1,13 @@
 #include "user-repository.h"
 
-namespace infrastructure::repositories {
+#include <string>
+
+namespace {
 
     using namespace infrastructure::db::sqlite;
     using namespace domain::models;
 
-    inline User readFromStatement(const SQLite::Statement& stmt) {
+    inline User readFromStatement(SQLite::Statement& stmt) {
         int readIndex = 0;
         return User{
             .id = stmt.getColumn(readIndex++),
@@ -13,6 +15,10 @@ namespace infrastructure::repositories {
             .passwordHash = stmt.getColumn(readIndex++)
         };
     }
+
+}
+
+namespace infrastructure::repositories {
 
     PersistenceResult<void> UserRepository::create(WriteUnitOfWork& wuov, User user) {
         constexpr const char* const sql = {

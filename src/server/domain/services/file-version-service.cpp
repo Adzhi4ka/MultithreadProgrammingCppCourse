@@ -1,12 +1,26 @@
 #include "file-version-service.h"
 
+#include "domain/services/service-result.h"
 #include "infrastructure/id-generator/id-generator.h"
 
 #include <chrono>
+#include <expected>
+
+namespace {
+
+    using namespace domain::models;
+
+    inline int64_t unixNowSeconds() noexcept {
+        using namespace std::chrono;
+
+        return duration_cast<seconds>(system_clock::now().time_since_epoch()).count();
+    }
+
+}
 
 namespace domain::services {
 
-    FileVersionService::FileVersionService(sqlite::SqliteDatabase& database,
+    FileVersionService::FileVersionService(SqliteDatabase& database,
                                            FileRepository& fileRepo,
                                            FileVersionRepository& fileVersionRepo) noexcept
         : m_database(database),
@@ -17,7 +31,6 @@ namespace domain::services {
                                                                 const std::string& logicalNameSnapshot,
                                                                 uint64_t physicalKey) {
 
-        
         auto ruow = m_database.createReadUnitOfWork();
 
         auto fileResult = m_fileRepo.getById(ruow, fileId);
@@ -33,7 +46,7 @@ namespace domain::services {
 
         const int64_t newVersionId = infrastructure::id_generator::generateId();
         const int32_t newVersionNumber = versionResult->version + 1;
-        const int64_t createdAt = std::chrono::system_clock::now().time_since_epoch().count();
+        const int64_t createdAt = unixNowSeconds();
 
         ruow.close();
 
@@ -88,6 +101,10 @@ namespace domain::services {
         auto versionsResult = m_fileVersionRepo.getVersions(ruow, fileId);
         if (!versionsResult) {
             return std::unexpected(mapPersistenceError(versionsResult.error()));
+        }
+
+        if (versionsResult->empty()) {
+            return std::unexpected(ServiceError::NotFound);
         }
 
         return *versionsResult;

@@ -13,10 +13,6 @@
 
 namespace domain::services {
 
-    using namespace infrastructure::db;
-    using namespace infrastructure::repositories;
-    using namespace domain::models;
-
     struct ForkResult {
         int64_t newFileId;
         int64_t newVersionId;
@@ -24,13 +20,19 @@ namespace domain::services {
 
     class FileVersionService {
 
-            sqlite::SqliteDatabase& m_database;
+            using SqliteDatabase = infrastructure::db::sqlite::SqliteDatabase;
+            using FileRepository = infrastructure::repositories::FileRepository;
+            using FileVersionRepository = infrastructure::repositories::FileVersionRepository;
+            using File = domain::models::File;
+            using FileVersion = domain::models::FileVersion;
+
+            SqliteDatabase& m_database;
             FileRepository& m_fileRepo;
             FileVersionRepository& m_fileVersionRepo;
 
         public:
 
-            FileVersionService(sqlite::SqliteDatabase& database,
+            FileVersionService(SqliteDatabase& database,
                                FileRepository& fileRepo,
                                FileVersionRepository& fileVersionRepo) noexcept;
 

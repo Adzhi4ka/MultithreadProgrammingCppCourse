@@ -1,12 +1,14 @@
 #include "file-acl-service.h"
 
-namespace domain::services {
+namespace {
 
-    using namespace infrastructure;
-    using namespace infrastructure::repositories;
     using namespace domain::models;
 
-    FileAclService::FileAclService(db::sqlite::SqliteDatabase& database,
+}
+
+namespace domain::services {
+
+    FileAclService::FileAclService(SqliteDatabase& database,
                                    FileAclRepository& fileAclRepo,
                                    UserGroupRepository& userGroupRepo) noexcept
         : m_database(database),
@@ -91,4 +93,4 @@ namespace domain::services {
         return {};
     }
 
-};
+} // namespace domain::services

@@ -1,14 +1,16 @@
 #include "group-service.h"
 
+#include "infrastructure/id-generator/id-generator.h"
+
+namespace {
+    using namespace domain::models;
+}
+
 namespace domain::services {
 
-    using namespace infrastructure::db;
-    using namespace infrastructure::repositories;
-    using namespace domain::models;
-
-    GroupService::GroupService(sqlite::SqliteDatabase& database,
-                    GroupRepository& groupRepo,
-                    UserGroupRepository& userGroupRepo) noexcept
+    GroupService::GroupService(SqliteDatabase& database,
+                               GroupRepository& groupRepo,
+                               UserGroupRepository& userGroupRepo) noexcept
         : m_database(database),
           m_groupRepo(groupRepo),
           m_userGroupRepo(userGroupRepo) {}

@@ -9,10 +9,13 @@
 
 namespace infrastructure::repositories {
 
-    using namespace infrastructure::db::sqlite;
-    using namespace domain::models;
-
     class FileAclRepository {
+
+            using WriteUnitOfWork = infrastructure::db::sqlite::WriteUnitOfWork;
+            using ReadUnitOfWork = infrastructure::db::sqlite::ReadUnitOfWork;
+            using UnitOfWork = infrastructure::db::sqlite::UnitOfWork;
+            using FileAcl = domain::models::FileAcl;
+            using AclLevel = domain::models::AclLevel;
 
         public:
 

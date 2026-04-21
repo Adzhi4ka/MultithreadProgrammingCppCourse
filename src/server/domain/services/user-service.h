@@ -9,18 +9,17 @@
 
 namespace domain::services {
 
-    using namespace infrastructure::db;
-    using namespace infrastructure::repositories;
-    using namespace domain::models;
-
     class UserService {
 
-            sqlite::SqliteDatabase& m_database;
+            using SqliteDatabase = infrastructure::db::sqlite::SqliteDatabase;
+            using UserRepository = infrastructure::repositories::UserRepository;
+
+            SqliteDatabase& m_database;
             UserRepository& m_userRepo;
 
         public:
 
-            UserService(sqlite::SqliteDatabase& database, UserRepository& userRepo) noexcept;
+            UserService(SqliteDatabase& database, UserRepository& userRepo) noexcept;
 
             ServiceResult<int64_t> login(const std::string& login, const std::string& rawPassword);
 

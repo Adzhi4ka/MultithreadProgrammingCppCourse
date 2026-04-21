@@ -3,13 +3,13 @@
 #include "infrastructure/id-generator/id-generator.h"
 #include "infrastructure/security/password-hasher.h"
 
+namespace {
+    using namespace domain::models;
+}
+
 namespace domain::services {
 
-    using namespace infrastructure::db;
-    using namespace infrastructure::repositories;
-    using namespace domain::models;
-
-    UserService::UserService(sqlite::SqliteDatabase& database,
+    UserService::UserService(SqliteDatabase& database,
                              UserRepository& userRepo) noexcept
         : m_database(database),
           m_userRepo(userRepo) {}
@@ -22,7 +22,7 @@ namespace domain::services {
             return std::unexpected(mapPersistenceError(userResult.error()));
         }
 
-        if (userResult->passwordHash == infrastructure::security::hashPassword(rawPassword)) {
+        if (infrastructure::security::verifyPassword(rawPassword, userResult->passwordHash)) {
             return userResult->id;
         }
 

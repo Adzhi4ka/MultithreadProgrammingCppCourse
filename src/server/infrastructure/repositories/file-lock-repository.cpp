@@ -1,6 +1,6 @@
 #include "file-lock-repository.h"
 
-namespace infrastructure::repositories {
+namespace {
 
     using namespace infrastructure::db::sqlite;
     using namespace domain::models;
@@ -14,6 +14,10 @@ namespace infrastructure::repositories {
             .lockToken = stmt.getColumn(readIndex++).getInt64()
         };
     }
+
+}
+
+namespace infrastructure::repositories {
 
     PersistenceResult<void> FileLockRepository::lock(WriteUnitOfWork& wuov, FileLock file) {
         constexpr const char* const sql = {
