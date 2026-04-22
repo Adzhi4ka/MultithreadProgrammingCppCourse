@@ -30,7 +30,7 @@ namespace infrastructure::http {
             throw beast::system_error(ec);
         }
 
-        auto _ = m_acceptor.listen(net::socket_base::max_listen_connections, ec);
+        m_acceptor.listen(net::socket_base::max_listen_connections, ec);
         if (ec) {
             throw beast::system_error(ec);
         }

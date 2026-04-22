@@ -9,5 +9,6 @@ add_executable(server_app
 target_link_libraries(server_app
     PRIVATE
         server_infrastructure
+        server_domain
         server_presentation
 )

@@ -6,6 +6,7 @@
 
 #include <functional>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 
 namespace infrastructure::http {
@@ -23,7 +24,7 @@ namespace infrastructure::http {
 
             struct RouteKey {
                 http::verb method;
-                std::string path;
+                std::string_view path;
 
                 bool operator==(const RouteKey& other) const noexcept = default;
             };
@@ -36,13 +37,13 @@ namespace infrastructure::http {
 
         public:
 
-            void add(http::verb method, std::string path, Handler handler);
+            void add(http::verb method, std::string_view path, Handler handler);
 
             void dispatch(RouteContext& context) const;
 
         private:
 
-            static std::string normalizePath(const Request& request);
+            static std::string_view normalizePath(const Request& request);
 
     };
 

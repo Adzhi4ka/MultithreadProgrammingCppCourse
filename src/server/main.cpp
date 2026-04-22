@@ -1,8 +1,17 @@
-#include "presentation/http/test-controller.h"
+#include "domain/services/user-service.h"
+
+#include "infrastructure/database/sqlite/database-factory.h"
+#include "infrastructure/database/sqlite/sqlite-database.h"
+#include "infrastructure/repositories/user-repository.h"
+#include "infrastructure/security/auth-token-store.h"
+#include "infrastructure/security/password-hasher.h"
 
 #include "infrastructure/http/active-session-registry.h"
 #include "infrastructure/http/listener.h"
 #include "infrastructure/http/router.h"
+
+#include "presentation/http/auth-controller.h"
+#include "presentation/http/notification-controller.h"
 
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/ip/tcp.hpp>
@@ -10,41 +19,6 @@
 
 #include <csignal>
 #include <iostream>
-#include <string_view>
-
-namespace {
-
-    std::string escapeJson(std::string_view input) {
-        std::string result;
-        result.reserve(input.size() + 8);
-
-        for (char ch : input) {
-            switch (ch) {
-                case '\\':
-                    result += "\\\\";
-                    break;
-                case '"':
-                    result += "\\\"";
-                    break;
-                case '\n':
-                    result += "\\n";
-                    break;
-                case '\r':
-                    result += "\\r";
-                    break;
-                case '\t':
-                    result += "\\t";
-                    break;
-                default:
-                    result += ch;
-                    break;
-            }
-        }
-
-        return result;
-    }
-
-}
 
 int main() {
     try {
@@ -53,23 +27,24 @@ int main() {
 
         net::io_context ioc{1};
 
+        infrastructure::security::initialize();
+
+        infrastructure::db::sqlite::DatabaseFactory databaseFactory{"server.db", 2};
+        infrastructure::db::sqlite::SqliteDatabase database{databaseFactory};
+
+        infrastructure::repositories::UserRepository userRepository;
+        domain::services::UserService userService{database, userRepository};
+
+        infrastructure::security::AuthTokenStore tokenStore;
+        infrastructure::http::ActiveSessionRegistry sessionRegistry;
+
         infrastructure::http::Router router;
-        infrastructure::http::ActiveSessionRegistry registry;
 
-        presentation::http::DebugEventBus eventBus;
-        eventBus.start();
+        presentation::http::AuthController authController{userService, tokenStore};
+        presentation::http::NotificationController notificationController{sessionRegistry, tokenStore};
 
-        eventBus.subscribe<presentation::http::DebugNotificationEvent>(
-            [&registry](const auto& event) {
-                registry.publishToAll(
-                    "debug_message",
-                    "{\"message\":\"" + escapeJson(event.message) + "\"}"
-                );
-            }
-        );
-
-        presentation::http::TestController controller{registry};
-        controller.registerRoutes(router, eventBus);
+        authController.registerRoutes(router);
+        notificationController.registerRoutes(router);
 
         auto listener = std::make_shared<infrastructure::http::Listener>(
             ioc,
@@ -79,7 +54,6 @@ int main() {
 
         net::signal_set signals(ioc, SIGINT, SIGTERM);
         signals.async_wait([&](const boost::system::error_code&, int) {
-            eventBus.stop();
             ioc.stop();
         });
 
@@ -88,7 +62,6 @@ int main() {
         std::cout << "Server started on http://127.0.0.1:8080\n";
         ioc.run();
 
-        eventBus.stop();
         return 0;
     } catch (const std::exception& ex) {
         std::cerr << "Fatal error: " << ex.what() << '\n';

@@ -57,8 +57,8 @@ namespace infrastructure::http {
 
             void doClose();
 
-            static std::string buildEvent(std::string eventName, const std::string& data);
-            static std::string buildComment(const std::string& comment);
+            static std::string buildEvent(std::string_view eventName, std::string_view data);
+            static std::string buildComment(std::string_view comment);
 
     };
 

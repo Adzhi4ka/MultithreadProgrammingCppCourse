@@ -1,5 +1,8 @@
+find_package(Boost REQUIRED COMPONENTS system json)
+
 add_library(server_presentation_http STATIC
-    test-controller.cpp
+    auth-controller.cpp
+    notification-controller.cpp
 )
 
 target_include_directories(server_presentation_http
@@ -10,4 +13,6 @@ target_include_directories(server_presentation_http
 target_link_libraries(server_presentation_http
     PUBLIC
         server_infrastructure
+        server_domain
+        Boost::json
 )

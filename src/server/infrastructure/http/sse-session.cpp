@@ -15,10 +15,8 @@ namespace infrastructure::http {
     }
 
     void SseSession::start() {
-        net::dispatch(
-            m_stream.get_executor(),
-            beast::bind_front_handler(&SseSession::doStart, shared_from_this())
-        );
+        net::dispatch(m_stream.get_executor(),
+                      beast::bind_front_handler(&SseSession::doStart, shared_from_this()));
     }
 
     void SseSession::doStart() {
@@ -28,54 +26,48 @@ namespace infrastructure::http {
 
         m_started = true;
 
-        enqueue(
-            "HTTP/1.1 200 OK\r\n"
-            "Content-Type: text/event-stream\r\n"
-            "Cache-Control: no-cache\r\n"
-            "Connection: keep-alive\r\n"
-            "X-Accel-Buffering: no\r\n"
-            "\r\n"
-        );
+        enqueue("HTTP/1.1 200 OK\r\n"
+                "Content-Type: text/event-stream\r\n"
+                "Cache-Control: no-cache\r\n"
+                "Connection: keep-alive\r\n"
+                "X-Accel-Buffering: no\r\n"
+                "\r\n" );
 
         enqueue(buildComment("connected"));
     }
 
     void SseSession::sendEvent(std::string eventName, std::string jsonData) {
-        net::post(
-            m_stream.get_executor(),
-            [self = shared_from_this(),
-             eventName = std::move(eventName),
-             jsonData = std::move(jsonData)]() mutable {
-                if (self->m_closed) {
-                    return;
-                }
+        net::post(m_stream.get_executor(),
+                  [self = shared_from_this(),
+                   eventName = std::move(eventName),
+                   jsonData = std::move(jsonData)]() mutable {
 
-                self->enqueue(buildEvent(std::move(eventName), jsonData));
-            }
+                    if (self->m_closed) {
+                        return;
+                    }
+    
+                    self->enqueue(buildEvent(std::move(eventName), jsonData));
+                }
         );
     }
 
     void SseSession::sendComment(std::string comment) {
-        net::post(
-            m_stream.get_executor(),
-            [self = shared_from_this(),
-             comment = std::move(comment)]() mutable {
-                if (self->m_closed) {
-                    return;
-                }
+        net::post(m_stream.get_executor(),
+                  [self = shared_from_this(),
+                   comment = std::move(comment)]() mutable {
 
-                self->enqueue(buildComment(comment));
-            }
+                        if (self->m_closed) {
+                            return;
+                        }
+
+                        self->enqueue(buildComment(comment));
+                    }
         );
     }
 
     void SseSession::close() {
-        net::post(
-            m_stream.get_executor(),
-            [self = shared_from_this()] {
-                self->doClose();
-            }
-        );
+        net::post(m_stream.get_executor(),
+                  [self = shared_from_this()] { self->doClose(); });
     }
 
     int64_t SseSession::userId() const noexcept {
@@ -102,11 +94,9 @@ namespace infrastructure::http {
 
         m_writeInProgress = true;
 
-        net::async_write(
-            m_stream,
-            net::buffer(m_outbox.front()),
-            beast::bind_front_handler(&SseSession::onWrite, shared_from_this())
-        );
+        net::async_write(m_stream,
+                         net::buffer(m_outbox.front()),
+                         beast::bind_front_handler(&SseSession::onWrite, shared_from_this()));
     }
 
     void SseSession::onWrite(boost::system::error_code ec, std::size_t) {
@@ -141,41 +131,83 @@ namespace infrastructure::http {
         }
     }
 
-    std::string SseSession::buildEvent(std::string eventName, const std::string& data) {
-        std::string result;
+    std::string SseSession::buildEvent(std::string_view eventName, std::string_view data) {
+        std::size_t reserveSize = data.size() + 8;
 
         if (!eventName.empty()) {
-            result += "event: ";
-            result += eventName;
-            result += '\n';
+            reserveSize += eventName.size() + 8;
+        }
+
+        for (auto ch : data) {
+            if (ch == '\n') {
+                reserveSize += 6;
+            }
+        }
+
+        reserveSize += 8;
+
+        std::string result;
+        result.reserve(reserveSize);
+
+        if (!eventName.empty()) {
+            result.append("event: ");
+            result.append(eventName.data(), eventName.size());
+            result.push_back('\n');
         }
 
         std::size_t start = 0;
 
-        while (start <= data.size()) {
+        for (;;) {
             const auto pos = data.find('\n', start);
 
-            result += "data: ";
+            result.append("data: ");
 
-            if (pos == std::string::npos) {
-                result += data.substr(start);
-                result += "\n\n";
+            if (pos == std::string_view::npos) {
+                result.append(data.data() + start, data.size() - start);
+                result.append("\n\n");
                 break;
             }
 
-            result += data.substr(start, pos - start);
-            result += '\n';
-
+            result.append(data.data() + start, pos - start);
+            result.push_back('\n');
             start = pos + 1;
         }
 
         return result;
     }
 
-    std::string SseSession::buildComment(const std::string& comment) {
-        std::string result = ": ";
-        result += comment;
-        result += "\n\n";
+    std::string SseSession::buildComment(std::string_view comment) {
+        std::size_t reserveSize = comment.size() + 4;
+
+        for (auto ch : comment) {
+            if (ch == '\n') {
+                reserveSize += 2;
+            }
+        }
+
+        reserveSize += 4;
+
+        std::string result;
+        result.reserve(reserveSize);
+
+        std::size_t start = 0;
+
+        for (;;) {
+            const std::size_t pos = comment.find('\n', start);
+
+            result.append(": ");
+
+            if (pos == std::string_view::npos) {
+                result.append(comment.data() + start, comment.size() - start);
+                result.append("\n\n");
+                break;
+            }
+
+            result.append(comment.data() + start, pos - start);
+            result.push_back('\n');
+            start = pos + 1;
+        }
+
         return result;
     }
 

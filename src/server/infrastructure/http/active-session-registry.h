@@ -3,7 +3,7 @@
 #include <atomic>
 #include <cstdint>
 #include <memory>
-#include <mutex>
+#include <shared_mutex>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -17,7 +17,7 @@ namespace infrastructure::http {
             using SessionMap = std::unordered_map<uint64_t, std::shared_ptr<SseSession>>;
 
             std::unordered_map<int64_t, SessionMap> m_sessions;
-            std::mutex m_mutex;
+            std::shared_mutex m_mutex;
 
             std::atomic_uint64_t m_nextSessionId {1};
 

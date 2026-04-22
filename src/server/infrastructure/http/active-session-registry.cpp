@@ -1,5 +1,6 @@
 #include "active-session-registry.h"
 #include "sse-session.h"
+#include <shared_mutex>
 
 namespace infrastructure::http {
 
@@ -49,7 +50,7 @@ namespace infrastructure::http {
     std::vector<std::shared_ptr<SseSession>> ActiveSessionRegistry::collectUserSessions(int64_t userId) {
         std::vector<std::shared_ptr<SseSession>> result;
 
-        std::lock_guard lock(m_mutex);
+        std::shared_lock sharedLock(m_mutex);
 
         const auto userIt = m_sessions.find(userId);
         if (userIt == m_sessions.end()) {
@@ -59,7 +60,7 @@ namespace infrastructure::http {
         result.reserve(userIt->second.size());
 
         for (auto& [sessionId, session] : userIt->second) {
-            result.push_back(session);
+            result.emplace_back(session);
         }
 
         return result;
@@ -68,7 +69,7 @@ namespace infrastructure::http {
     std::vector<std::shared_ptr<SseSession>> ActiveSessionRegistry::collectAllSessions() {
         std::vector<std::shared_ptr<SseSession>> result;
 
-        std::lock_guard lock(m_mutex);
+        std::shared_lock sharedLock(m_mutex);
 
         for (auto& [userId, userSessions] : m_sessions) {
             result.reserve(result.size() + userSessions.size());
