@@ -18,9 +18,9 @@ namespace infrastructure::repositories {
 
         public:
 
-            PersistenceResult<void> create(WriteUnitOfWork& wuov, File file);
-            PersistenceResult<void> update(WriteUnitOfWork& wuov, File file);
-            PersistenceResult<void> remove(WriteUnitOfWork& wuov, int64_t id);
+            PersistenceResult<void> create(WriteUnitOfWork& wuow, File file);
+            PersistenceResult<void> update(WriteUnitOfWork& wuow, File file);
+            PersistenceResult<void> remove(WriteUnitOfWork& wuow, int64_t id);
 
             PersistenceResult<File> getById(UnitOfWork& uow, int64_t id);
             PersistenceResult<File> getByName(UnitOfWork& uow, const std::string& name);

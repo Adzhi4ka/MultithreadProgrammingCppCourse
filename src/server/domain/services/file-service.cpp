@@ -84,6 +84,17 @@ namespace domain::services {
         return *fileResult;
     }
 
+    ServiceResult<std::vector<File>> FileService::getAll() {
+        auto ruow = m_database.createReadUnitOfWork();
+
+        auto filesResult = m_fileRepo.getAll(ruow);
+        if (!filesResult) {
+            return std::unexpected(mapPersistenceError(filesResult.error()));
+        }
+
+        return *filesResult;
+    }
+
     ServiceResult<void> FileService::rename(int64_t fileId, std::string newLogicalName) {
         auto wuow = m_database.createWriteUnitOfWork();
 

@@ -18,8 +18,8 @@ namespace infrastructure::repositories {
 
         public:
 
-            PersistenceResult<void> addUserToGroup(WriteUnitOfWork& wuov, UserGroup userGroup);
-            PersistenceResult<void> removeUserFromGroup(WriteUnitOfWork& wuov, UserGroup userGroup);
+            PersistenceResult<void> addUserToGroup(WriteUnitOfWork& wuow, UserGroup userGroup);
+            PersistenceResult<void> removeUserFromGroup(WriteUnitOfWork& wuow, UserGroup userGroup);
 
             PersistenceResult<std::vector<int64_t>> getGroupIdsOfUser(UnitOfWork& uow, int64_t userId);
             PersistenceResult<std::vector<int64_t>> getUserIdsOfGroup(UnitOfWork& uow, int64_t groupId);

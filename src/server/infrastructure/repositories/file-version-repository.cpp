@@ -21,7 +21,7 @@ namespace {
 
 namespace infrastructure::repositories {
 
-    PersistenceResult<void> FileVersionRepository::addVersion(WriteUnitOfWork& wuov, FileVersion version) {
+    PersistenceResult<void> FileVersionRepository::addVersion(WriteUnitOfWork& wuow, FileVersion version) {
         constexpr const char* const sql = {
             "INSERT INTO file_versions "
                 "(id, file_id, version, logical_name_snapshot, physical_path_name, created_at) "
@@ -29,7 +29,7 @@ namespace infrastructure::repositories {
         };
 
         try {
-            SQLite::Statement statement(wuov.connection(), sql);
+            SQLite::Statement statement(wuow.connection(), sql);
             {
                 int bindIndex = 1;
                 statement.bind(bindIndex++, version.id);
@@ -47,7 +47,7 @@ namespace infrastructure::repositories {
         }
     }
 
-    PersistenceResult<void> FileVersionRepository::updateName(WriteUnitOfWork& wuov, int64_t versionId, const std::string& name) {
+    PersistenceResult<void> FileVersionRepository::updateName(WriteUnitOfWork& wuow, int64_t versionId, const std::string& name) {
         constexpr const char* const sql = {
             "UPDATE file_versions "
             "SET logical_name_snapshot = ? "
@@ -55,7 +55,7 @@ namespace infrastructure::repositories {
         };
 
         try {
-            SQLite::Statement statement(wuov.connection(), sql);
+            SQLite::Statement statement(wuow.connection(), sql);
             {
                 int bindIndex = 1;
                 statement.bindNoCopy(bindIndex++, name);
@@ -64,7 +64,7 @@ namespace infrastructure::repositories {
 
             statement.exec();
 
-            if (wuov.connection().getChanges() == 0) {
+            if (wuow.connection().getChanges() == 0) {
                 return std::unexpected(PersistenceError::NotFound);
             }
 
@@ -74,7 +74,7 @@ namespace infrastructure::repositories {
         }
     }
 
-    PersistenceResult<void> FileVersionRepository::removeOldVersions(WriteUnitOfWork& wuov, int64_t fileId, int keepLastN) {
+    PersistenceResult<void> FileVersionRepository::removeOldVersions(WriteUnitOfWork& wuow, int64_t fileId, int keepLastN) {
         constexpr const char* const sql = {
             "DELETE FROM file_versions "
             "WHERE file_id = ?1 "
@@ -88,7 +88,7 @@ namespace infrastructure::repositories {
         };
 
         try {
-            SQLite::Statement statement(wuov.connection(), sql);
+            SQLite::Statement statement(wuow.connection(), sql);
             {
                 int bindIndex = 1;
                 statement.bind(bindIndex++, fileId);

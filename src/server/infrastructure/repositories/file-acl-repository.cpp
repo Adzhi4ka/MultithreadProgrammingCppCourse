@@ -10,7 +10,7 @@ namespace {
         return FileAcl{
             .fileId = stmt.getColumn(readIndex++).getInt64(),
             .groupId = stmt.getColumn(readIndex++).getInt64(),
-            .aclLevel = (AclLevel)stmt.getColumn(readIndex++).getInt()
+            .aclLevel = static_cast<AclLevel>(stmt.getColumn(readIndex++).getInt())
         };
     }
 
@@ -18,20 +18,22 @@ namespace {
 
 namespace infrastructure::repositories {
 
-    PersistenceResult<void> FileAclRepository::grant(WriteUnitOfWork& wuov, FileAcl fileAcl) {
+    PersistenceResult<void> FileAclRepository::grant(WriteUnitOfWork& wuow, FileAcl fileAcl) {
         constexpr const char* const sql = {
             "INSERT INTO file_acl "
                 "(file_id, group_id, acl_level) "
-            "VALUES (?, ?, ?);"
+            "VALUES (?, ?, ?) "
+            "ON CONFLICT(file_id, group_id) DO UPDATE SET "
+                "acl_level = excluded.acl_level;"
         };
 
         try {
-            SQLite::Statement statement(wuov.connection(), sql);
+            SQLite::Statement statement(wuow.connection(), sql);
             {
                 int bindIndex = 1;
                 statement.bind(bindIndex++, fileAcl.fileId);
                 statement.bind(bindIndex++, fileAcl.groupId);
-                statement.bind(bindIndex++, (int32_t)fileAcl.aclLevel);
+                statement.bind(bindIndex++, static_cast<int32_t>(fileAcl.aclLevel));
             }
 
             statement.exec();
@@ -41,14 +43,14 @@ namespace infrastructure::repositories {
         }
     }
 
-    PersistenceResult<void> FileAclRepository::revoke(WriteUnitOfWork& wuov, int64_t fileId, int64_t groupId) {
+    PersistenceResult<void> FileAclRepository::revoke(WriteUnitOfWork& wuow, int64_t fileId, int64_t groupId) {
         constexpr const char* const sql = {
             "DELETE FROM file_acl "
             "WHERE file_id = ? AND group_id = ?;"
         };
 
         try {
-            SQLite::Statement statement(wuov.connection(), sql);
+            SQLite::Statement statement(wuow.connection(), sql);
             {
                 int bindIndex = 1;
                 statement.bind(bindIndex++, fileId);
@@ -57,7 +59,7 @@ namespace infrastructure::repositories {
 
             statement.exec();
 
-            if (wuov.connection().getChanges() == 0) {
+            if (wuow.connection().getChanges() == 0) {
                 return std::unexpected(PersistenceError::NotFound);
             }
 
@@ -86,7 +88,7 @@ namespace infrastructure::repositories {
                 return std::unexpected(PersistenceError::NotFound);
             }
 
-            return (AclLevel)statement.getColumn(0).getInt();
+            return static_cast<AclLevel>(statement.getColumn(0).getInt());
         } catch (const SQLite::Exception& ex) {
             return std::unexpected(mapSqliteException(ex));
         }

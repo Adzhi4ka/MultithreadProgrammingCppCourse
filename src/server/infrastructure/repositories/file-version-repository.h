@@ -18,9 +18,9 @@ namespace infrastructure::repositories {
 
         public:
 
-            PersistenceResult<void> addVersion(WriteUnitOfWork& wuov, FileVersion version);
-            PersistenceResult<void> updateName(WriteUnitOfWork& wuov, int64_t versionId, const std::string& name);
-            PersistenceResult<void> removeOldVersions(WriteUnitOfWork& wuov, int64_t fileId, int32_t keepLastN);
+            PersistenceResult<void> addVersion(WriteUnitOfWork& wuow, FileVersion version);
+            PersistenceResult<void> updateName(WriteUnitOfWork& wuow, int64_t versionId, const std::string& name);
+            PersistenceResult<void> removeOldVersions(WriteUnitOfWork& wuow, int64_t fileId, int32_t keepLastN);
 
             PersistenceResult<std::vector<FileVersion>> getVersions(UnitOfWork& uow, int64_t fileId);
             PersistenceResult<FileVersion> getVersion(UnitOfWork& uow, int64_t versionId);
