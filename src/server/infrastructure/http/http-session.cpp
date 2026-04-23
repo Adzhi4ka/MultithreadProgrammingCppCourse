@@ -15,6 +15,21 @@ namespace infrastructure::http {
                       beast::bind_front_handler(&HttpSession::doRead, shared_from_this()));
     }
 
+    net::any_io_executor HttpSession::executor() noexcept {
+        return m_stream.get_executor();
+    }
+
+    void HttpSession::sendResponse(Response response) {
+        net::post(m_stream.get_executor(),
+                  [self = shared_from_this(), response = std::move(response)]() mutable {
+                      if (self->m_detached || self->m_response.has_value()) {
+                          return;
+                      }
+
+                      self->writeResponse(std::move(response));
+                  });
+    }
+
     beast::tcp_stream HttpSession::releaseStream() {
         m_detached = true;
         return std::move(m_stream);
@@ -40,10 +55,10 @@ namespace infrastructure::http {
             return;
         }
 
-        RouteContext context{*this, std::move(m_request)};
+        RouteContext context{shared_from_this(), std::move(m_request)};
         m_router.dispatch(context);
 
-        if (m_detached) {
+        if (m_detached || context.isResponseDeferred()) {
             return;
         }
 

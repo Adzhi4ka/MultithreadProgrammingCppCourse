@@ -31,6 +31,10 @@ namespace infrastructure::http {
 
             void run();
 
+            net::any_io_executor executor() noexcept;
+
+            void sendResponse(Response response);
+
             beast::tcp_stream releaseStream();
 
         private:

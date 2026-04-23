@@ -18,8 +18,8 @@ namespace infrastructure::security {
         if (crypto_pwhash_str(hashedPassword.data(),
                               rawPassword.data(),
                               rawPassword.size(),
-                              crypto_pwhash_OPSLIMIT_INTERACTIVE,
-                              crypto_pwhash_MEMLIMIT_INTERACTIVE) != 0) {
+                              crypto_pwhash_OPSLIMIT_MIN,
+                              crypto_pwhash_MEMLIMIT_MIN) != 0) {
 
             throw std::runtime_error("crypto_pwhash_str failed");
         }

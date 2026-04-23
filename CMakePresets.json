@@ -28,7 +28,8 @@
                 "CMAKE_EXE_LINKER_FLAGS_DEBUG": "-fsanitize=address,undefined",
                 "CMAKE_SHARED_LINKER_FLAGS_DEBUG": "-fsanitize=address,undefined",
                 "BUILD_TESTING": "ON",
-                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+                "CMAKE_LINKER_TYPE": "LLD"
             }
         },
         {
@@ -46,6 +47,7 @@
                 "CMAKE_CXX_EXTENSIONS": "OFF",
                 "CMAKE_CXX_FLAGS_RELEASE": "-O3 -DNDEBUG -Wall -Wextra -march=native",
                 "BUILD_TESTING": "ON",
+                "CMAKE_LINKER_TYPE": "LLD",
                 "CMAKE_INTERPROCEDURAL_OPTIMIZATION":true
             }
         }
