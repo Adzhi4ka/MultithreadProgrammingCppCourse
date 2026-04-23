@@ -82,7 +82,7 @@ int main() {
         std::filesystem::create_directories(storageDir);
         initializeFileStoragePrefix(storagePrefix);
 
-        net::io_context ioc{static_cast<int>(ioThreads)};
+        net::io_context ioc{(int)ioThreads};
         infrastructure::execution::ThreadPool appThreadPool{workerThreads};
 
         infrastructure::security::initialize();
@@ -114,10 +114,7 @@ int main() {
         presentation::http::GroupController groupController{groupService, tokenStore, appThreadPool};
         presentation::http::FileAclController fileAclController{fileAclService, tokenStore, appThreadPool};
         presentation::http::FileLockController fileLockController{fileLockService, tokenStore, appThreadPool};
-        presentation::http::FileController fileController{fileService,
-                                                          fileContentService,
-                                                          tokenStore,
-                                                          appThreadPool};
+        presentation::http::FileController fileController{fileService, fileContentService, fileAclService, tokenStore, appThreadPool};
         presentation::http::NotificationController notificationController{sessionRegistry, tokenStore};
 
         authController.registerRoutes(router);

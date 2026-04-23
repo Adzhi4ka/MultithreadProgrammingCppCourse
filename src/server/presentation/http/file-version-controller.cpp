@@ -1,8 +1,8 @@
 #include "file-version-controller.h"
 
 #include "async-dispatch.h"
-#include "auth-helpers.h"
 #include "json-helpers.h"
+#include "auth-helpers.h"
 #include "response-helpers.h"
 
 #include <optional>
@@ -15,7 +15,7 @@ namespace {
     using namespace domain::models;
     namespace json = boost::json;
 
-    json::object toJson(const FileVersion& fileVersion) {
+    json::object toPublicJson(const FileVersion& fileVersion) {
         return json::object{
             {"id", fileVersion.id},
             {"fileId", fileVersion.fileId},
@@ -25,15 +25,36 @@ namespace {
         };
     }
 
-    json::array toJsonArray(const std::vector<FileVersion>& versions) {
+    json::array toPublicJsonArray(const std::vector<FileVersion>& versions) {
         json::array items;
         items.reserve(versions.size());
 
         for (const auto& version : versions) {
-            items.emplace_back(toJson(version));
+            items.emplace_back(toPublicJson(version));
         }
 
         return items;
+    }
+
+    inline bool requireFileAcl(infrastructure::http::RouteContext& ctx,
+                               domain::services::FileAclService& fileAclService,
+                               int64_t userId,
+                               int64_t fileId,
+                               domain::models::AclLevel requiredAclLevel) {
+        auto& req = ctx.request();
+
+        const auto aclResult = fileAclService.getUserAclLevel(userId, fileId);
+        if (!aclResult) {
+            ctx.reply(presentation::http::makeServiceErrorResponse(req, aclResult.error()));
+            return false;
+        }
+
+        if (*aclResult < requiredAclLevel) {
+            ctx.reply(presentation::http::makeServiceErrorResponse(req, domain::services::ServiceError::Forbidden));
+            return false;
+        }
+
+        return true;
     }
 
 }
@@ -46,10 +67,12 @@ namespace presentation::http {
 
     FileVersionController::FileVersionController(FileVersionService& fileVersionService,
                                                  FileContentService& fileContentService,
+                                                 FileAclService& fileAclService,
                                                  AuthTokenStore& tokenStore,
                                                  ThreadPool& threadPool) noexcept
         : m_fileVersionService(fileVersionService),
           m_fileContentService(fileContentService),
+          m_fileAclService(fileAclService),
           m_tokenStore(tokenStore),
           m_threadPool(threadPool) {}
 
@@ -73,7 +96,8 @@ namespace presentation::http {
     void FileVersionController::handleCreateNewVersion(RouteContext& ctx) {
         auto& req = ctx.request();
 
-        if (!authenticateUserId(req, m_tokenStore)) {
+        auto authenticatedUserId = authenticateUserId(req, m_tokenStore);
+        if (!authenticatedUserId) {
             ctx.reply(makeUnauthorizedResponse(req));
             return;
         }
@@ -92,6 +116,10 @@ namespace presentation::http {
             return;
         }
 
+        if (!requireFileAcl(ctx, m_fileAclService, *authenticatedUserId, *fileId, AclLevel::READ_WRITE)) {
+            return;
+        }
+
         const auto version = req.version();
         const bool keepAlive = req.keep_alive();
 
@@ -100,7 +128,6 @@ namespace presentation::http {
                      keepAlive,
                      fileId = *fileId,
                      logicalNameSnapshot = *logicalNameSnapshot]() -> infrastructure::http::Response {
-
             auto createdStorageResult = m_fileContentService.createNew();
             if (!createdStorageResult) {
                 return makeServiceErrorResponse(version, keepAlive, createdStorageResult.error());
@@ -125,7 +152,7 @@ namespace presentation::http {
             }
 
             return infrastructure::http::makeJsonResponse(http::status::created,
-                                                          serializeJson(toJson(*currentVersionResult)),
+                                                          serializeJson(toPublicJson(*currentVersionResult)),
                                                           version,
                                                           keepAlive);
         };
@@ -136,7 +163,8 @@ namespace presentation::http {
     void FileVersionController::handleGetCurrentVersion(RouteContext& ctx) {
         auto& req = ctx.request();
 
-        if (!authenticateUserId(req, m_tokenStore)) {
+        auto authenticatedUserId = authenticateUserId(req, m_tokenStore);
+        if (!authenticatedUserId) {
             ctx.reply(makeUnauthorizedResponse(req));
             return;
         }
@@ -150,6 +178,10 @@ namespace presentation::http {
         const auto fileId = parseInt64(*fileIdText);
         if (!fileId) {
             ctx.reply(makeBadRequestResponse(req, "fileId must be int64"));
+            return;
+        }
+
+        if (!requireFileAcl(ctx, m_fileAclService, *authenticatedUserId, *fileId, AclLevel::READ_ONLY)) {
             return;
         }
 
@@ -163,7 +195,7 @@ namespace presentation::http {
             }
 
             return infrastructure::http::makeJsonResponse(http::status::ok,
-                                                          serializeJson(toJson(*result)),
+                                                          serializeJson(toPublicJson(*result)),
                                                           version,
                                                           keepAlive);
         };
@@ -174,7 +206,8 @@ namespace presentation::http {
     void FileVersionController::handleGetAllVersions(RouteContext& ctx) {
         auto& req = ctx.request();
 
-        if (!authenticateUserId(req, m_tokenStore)) {
+        auto authenticatedUserId = authenticateUserId(req, m_tokenStore);
+        if (!authenticatedUserId) {
             ctx.reply(makeUnauthorizedResponse(req));
             return;
         }
@@ -191,6 +224,10 @@ namespace presentation::http {
             return;
         }
 
+        if (!requireFileAcl(ctx, m_fileAclService, *authenticatedUserId, *fileId, AclLevel::READ_ONLY)) {
+            return;
+        }
+
         const auto version = req.version();
         const bool keepAlive = req.keep_alive();
 
@@ -201,7 +238,7 @@ namespace presentation::http {
             }
 
             json::object responseBody;
-            responseBody["items"] = toJsonArray(*result);
+            responseBody["items"] = toPublicJsonArray(*result);
 
             return infrastructure::http::makeJsonResponse(http::status::ok,
                                                           serializeJson(responseBody),

@@ -29,7 +29,7 @@ namespace infrastructure::http {
     }
 
     AsyncResponseHandle::operator bool() const noexcept {
-        return static_cast<bool>(m_state) && static_cast<bool>(m_state->session);
+        return m_state && m_state->session;
     }
 
     RouteContext::RouteContext(std::shared_ptr<HttpSession> session, Request&& request)

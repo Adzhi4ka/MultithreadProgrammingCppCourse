@@ -10,7 +10,7 @@ namespace {
         return FileAcl{
             .fileId = stmt.getColumn(readIndex++).getInt64(),
             .groupId = stmt.getColumn(readIndex++).getInt64(),
-            .aclLevel = static_cast<AclLevel>(stmt.getColumn(readIndex++).getInt())
+            .aclLevel = (AclLevel)stmt.getColumn(readIndex++).getInt()
         };
     }
 
@@ -33,7 +33,7 @@ namespace infrastructure::repositories {
                 int bindIndex = 1;
                 statement.bind(bindIndex++, fileAcl.fileId);
                 statement.bind(bindIndex++, fileAcl.groupId);
-                statement.bind(bindIndex++, static_cast<int32_t>(fileAcl.aclLevel));
+                statement.bind(bindIndex++, (int32_t)fileAcl.aclLevel);
             }
 
             statement.exec();
@@ -88,7 +88,7 @@ namespace infrastructure::repositories {
                 return std::unexpected(PersistenceError::NotFound);
             }
 
-            return static_cast<AclLevel>(statement.getColumn(0).getInt());
+            return (AclLevel)statement.getColumn(0).getInt();
         } catch (const SQLite::Exception& ex) {
             return std::unexpected(mapSqliteException(ex));
         }

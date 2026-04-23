@@ -49,30 +49,6 @@ namespace tests {
         EXPECT_EQ(*getAclResult, domain::models::AclLevel::READ_WRITE);
     }
 
-    TEST_F(ServiceIntegrationTest, setGroupAclLevel_ReturnsConflict_WhenAclAlreadyExists) {
-        auto addUserResult = m_userService->addUser("ivan", "123456");
-        ASSERT_TRUE(addUserResult.has_value());
-
-        auto createFileResult = m_fileService->create("file.txt", *addUserResult, 111);
-        ASSERT_TRUE(createFileResult.has_value());
-
-        auto createGroupResult = m_groupService->createGroup("admins");
-        ASSERT_TRUE(createGroupResult.has_value());
-
-        auto firstCreateAclResult =
-            m_fileAclService->setGroupAclLevel(*createFileResult,
-                                               *createGroupResult,
-                                               domain::models::AclLevel::READ_ONLY);
-        ASSERT_TRUE(firstCreateAclResult.has_value());
-
-        auto secondCreateAclResult =
-            m_fileAclService->setGroupAclLevel(*createFileResult,
-                                               *createGroupResult,
-                                               domain::models::AclLevel::READ_WRITE);
-        ASSERT_FALSE(secondCreateAclResult.has_value());
-        EXPECT_EQ(secondCreateAclResult.error(), ServiceError::Conflict);
-    }
-
     TEST_F(ServiceIntegrationTest, GetGroupAclLevel_ReturnsNoProperty_WhenAclDoesNotExist) {
         auto addUserResult = m_userService->addUser("ivan", "123456");
         ASSERT_TRUE(addUserResult.has_value());

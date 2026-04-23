@@ -1,7 +1,7 @@
 #include "file-controller.h"
 
-#include "async-dispatch.h"
 #include "auth-helpers.h"
+#include "async-dispatch.h"
 #include "json-helpers.h"
 #include "response-helpers.h"
 
@@ -16,12 +16,14 @@ namespace {
     namespace json = boost::json;
 
     json::object toJson(const File& file) {
-        return json::object{{"id", file.id},
-                            {"fullLogicalName", file.fullLogicalName},
-                            {"currentVersionId", file.currentVersionId},
-                            {"maxVersionCount", file.maxVersionCount},
-                            {"createdAt", file.createdAt},
-                            {"createdBy", file.createdBy}};
+        return json::object{
+            {"id", file.id},
+            {"fullLogicalName", file.fullLogicalName},
+            {"currentVersionId", file.currentVersionId},
+            {"maxVersionCount", file.maxVersionCount},
+            {"createdAt", file.createdAt},
+            {"createdBy", file.createdBy}
+        };
     }
 
     json::array toJsonArray(const std::vector<File>& files) {
@@ -35,19 +37,43 @@ namespace {
         return items;
     }
 
+    inline bool requireFileAcl(infrastructure::http::RouteContext& ctx,
+                               domain::services::FileAclService& fileAclService,
+                               int64_t userId,
+                               int64_t fileId,
+                               domain::models::AclLevel requiredAclLevel) {
+        auto& req = ctx.request();
+
+        const auto aclResult = fileAclService.getUserAclLevel(userId, fileId);
+        if (!aclResult) {
+            ctx.reply(presentation::http::makeServiceErrorResponse(req, aclResult.error()));
+            return false;
+        }
+
+        if (*aclResult < requiredAclLevel) {
+            ctx.reply(presentation::http::makeServiceErrorResponse(req, domain::services::ServiceError::Forbidden));
+            return false;
+        }
+
+        return true;
+    }
+
 }
 
 namespace presentation::http {
 
     namespace beast = boost::beast;
     namespace http = beast::http;
+    namespace json = boost::json;
 
     FileController::FileController(FileService& fileService,
                                    FileContentService& fileContentService,
+                                   FileAclService& fileAclService,
                                    AuthTokenStore& tokenStore,
                                    ThreadPool& threadPool) noexcept
         : m_fileService(fileService),
           m_fileContentService(fileContentService),
+          m_fileAclService(fileAclService),
           m_tokenStore(tokenStore),
           m_threadPool(threadPool) {}
 
@@ -121,10 +147,9 @@ namespace presentation::http {
         auto task = [this,
                      version,
                      keepAlive,
-                     logicalName = std::move(*logicalName),
+                     logicalName = *logicalName,
                      createdByUser = *authenticatedUserId,
                      maxVersionCount]() -> infrastructure::http::Response {
-
             auto createdStorageResult = m_fileContentService.createNew();
             if (!createdStorageResult) {
                 return makeServiceErrorResponse(version, keepAlive, createdStorageResult.error());
@@ -132,7 +157,7 @@ namespace presentation::http {
 
             const uint64_t physicalPath = createdStorageResult->physicalPath;
 
-            auto createFileResult = m_fileService.create(std::move(logicalName),
+            auto createFileResult = m_fileService.create(logicalName,
                                                          createdByUser,
                                                          physicalPath,
                                                          maxVersionCount);
@@ -161,7 +186,8 @@ namespace presentation::http {
     void FileController::handleGetAll(RouteContext& ctx) {
         auto& req = ctx.request();
 
-        if (!authenticateUserId(req, m_tokenStore)) {
+        auto authenticatedUserId = authenticateUserId(req, m_tokenStore);
+        if (!authenticatedUserId) {
             ctx.reply(makeUnauthorizedResponse(req));
             return;
         }
@@ -169,14 +195,31 @@ namespace presentation::http {
         const auto version = req.version();
         const bool keepAlive = req.keep_alive();
 
-        auto task = [this, version, keepAlive]() -> infrastructure::http::Response {
+        auto task = [this, version, keepAlive, userId = *authenticatedUserId]() -> infrastructure::http::Response {
             auto result = m_fileService.getAll();
             if (!result) {
                 return makeServiceErrorResponse(version, keepAlive, result.error());
             }
 
+            std::vector<File> visibleFiles;
+            visibleFiles.reserve(result->size());
+
+            for (const auto& file : *result) {
+                auto aclResult = m_fileAclService.getUserAclLevel(userId, file.id);
+                if (!aclResult) {
+                    return makeServiceErrorResponse(version, keepAlive, aclResult.error());
+                }
+
+                if (*aclResult >= AclLevel::READ_ONLY) {
+                    visibleFiles.emplace_back(file);
+                }
+            }
+
+            json::object responseBody;
+            responseBody["items"] = toJsonArray(visibleFiles);
+
             return infrastructure::http::makeJsonResponse(http::status::ok,
-                                                          serializeJson({"items", toJsonArray(*result)}),
+                                                          serializeJson(responseBody),
                                                           version,
                                                           keepAlive);
         };
@@ -187,7 +230,8 @@ namespace presentation::http {
     void FileController::handleGetById(RouteContext& ctx) {
         auto& req = ctx.request();
 
-        if (!authenticateUserId(req, m_tokenStore)) {
+        auto authenticatedUserId = authenticateUserId(req, m_tokenStore);
+        if (!authenticatedUserId) {
             ctx.reply(makeUnauthorizedResponse(req));
             return;
         }
@@ -201,6 +245,10 @@ namespace presentation::http {
         const auto fileId = parseInt64(*fileIdText);
         if (!fileId) {
             ctx.reply(makeBadRequestResponse(req, "fileId must be int64"));
+            return;
+        }
+
+        if (!requireFileAcl(ctx, m_fileAclService, *authenticatedUserId, *fileId, AclLevel::READ_ONLY)) {
             return;
         }
 
@@ -225,7 +273,8 @@ namespace presentation::http {
     void FileController::handleGetByLogicalName(RouteContext& ctx) {
         auto& req = ctx.request();
 
-        if (!authenticateUserId(req, m_tokenStore)) {
+        auto authenticatedUserId = authenticateUserId(req, m_tokenStore);
+        if (!authenticatedUserId) {
             ctx.reply(makeUnauthorizedResponse(req));
             return;
         }
@@ -239,13 +288,20 @@ namespace presentation::http {
         const auto version = req.version();
         const bool keepAlive = req.keep_alive();
 
-        auto task = [this,
-                     version,
-                     keepAlive,
+        auto task = [this, version, keepAlive, userId = *authenticatedUserId,
                      logicalName = std::string(*logicalNameText)]() -> infrastructure::http::Response {
             auto result = m_fileService.getByLogicalName(logicalName);
             if (!result) {
                 return makeServiceErrorResponse(version, keepAlive, result.error());
+            }
+
+            auto aclResult = m_fileAclService.getUserAclLevel(userId, result->id);
+            if (!aclResult) {
+                return makeServiceErrorResponse(version, keepAlive, aclResult.error());
+            }
+
+            if (*aclResult < AclLevel::READ_ONLY) {
+                return makeServiceErrorResponse(version, keepAlive, domain::services::ServiceError::Forbidden);
             }
 
             return infrastructure::http::makeJsonResponse(http::status::ok,
@@ -260,7 +316,8 @@ namespace presentation::http {
     void FileController::handleRename(RouteContext& ctx) {
         auto& req = ctx.request();
 
-        if (!authenticateUserId(req, m_tokenStore)) {
+        auto authenticatedUserId = authenticateUserId(req, m_tokenStore);
+        if (!authenticatedUserId) {
             ctx.reply(makeUnauthorizedResponse(req));
             return;
         }
@@ -279,6 +336,10 @@ namespace presentation::http {
             return;
         }
 
+        if (!requireFileAcl(ctx, m_fileAclService, *authenticatedUserId, *fileId, AclLevel::READ_WRITE)) {
+            return;
+        }
+
         const auto version = req.version();
         const bool keepAlive = req.keep_alive();
 
@@ -286,7 +347,7 @@ namespace presentation::http {
                      version,
                      keepAlive,
                      fileId = *fileId,
-                     newLogicalName = std::move(*newLogicalName)]() -> infrastructure::http::Response {
+                     newLogicalName = *newLogicalName]() -> infrastructure::http::Response {
             auto result = m_fileService.rename(fileId, newLogicalName);
             if (!result) {
                 return makeServiceErrorResponse(version, keepAlive, result.error());
@@ -309,7 +370,8 @@ namespace presentation::http {
     void FileController::handleRemove(RouteContext& ctx) {
         auto& req = ctx.request();
 
-        if (!authenticateUserId(req, m_tokenStore)) {
+        auto authenticatedUserId = authenticateUserId(req, m_tokenStore);
+        if (!authenticatedUserId) {
             ctx.reply(makeUnauthorizedResponse(req));
             return;
         }
@@ -323,6 +385,10 @@ namespace presentation::http {
         const auto fileId = parseInt64(*fileIdText);
         if (!fileId) {
             ctx.reply(makeBadRequestResponse(req, "fileId must be int64"));
+            return;
+        }
+
+        if (!requireFileAcl(ctx, m_fileAclService, *authenticatedUserId, *fileId, AclLevel::READ_WRITE)) {
             return;
         }
 
