@@ -5,6 +5,7 @@
 #include "json-helpers.h"
 #include "response-helpers.h"
 
+#include <boost/json/object.hpp>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -358,7 +359,7 @@ namespace presentation::http {
             }
 
             return infrastructure::http::makeJsonResponse(http::status::ok,
-                                                          serializeJson({"items", toJsonArray(*result)}),
+                                                          serializeJson(json::object{{"items", toJsonArray(*result)}}),
                                                           version,
                                                           keepAlive);
         };
@@ -396,7 +397,7 @@ namespace presentation::http {
             }
 
             return infrastructure::http::makeJsonResponse(http::status::ok,
-                                                          serializeJson({"items", toJsonArray(*result)}),
+                                                          serializeJson(json::object{{"items", toJsonArray(*result)}}),
                                                           version,
                                                           keepAlive);
         };

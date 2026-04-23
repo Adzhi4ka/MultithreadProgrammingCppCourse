@@ -215,11 +215,8 @@ namespace presentation::http {
                 }
             }
 
-            json::object responseBody;
-            responseBody["items"] = toJsonArray(visibleFiles);
-
             return infrastructure::http::makeJsonResponse(http::status::ok,
-                                                          serializeJson(responseBody),
+                                                          serializeJson(json::object{{"items", toJsonArray(visibleFiles)}}),
                                                           version,
                                                           keepAlive);
         };

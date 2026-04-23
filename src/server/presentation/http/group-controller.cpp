@@ -4,6 +4,7 @@
 #include "auth-helpers.h"
 #include "json-helpers.h"
 #include "response-helpers.h"
+#include <boost/json/object.hpp>
 
 namespace {
 
@@ -173,7 +174,7 @@ namespace presentation::http {
             }
 
             return infrastructure::http::makeJsonResponse(http::status::ok,
-                                                          serializeJson({"items", toJsonArray(*result)}),
+                                                          serializeJson(json::object{{"items", toJsonArray(*result)}}),
                                                           version,
                                                           keepAlive);
         };
@@ -328,7 +329,7 @@ namespace presentation::http {
             }
 
             return infrastructure::http::makeJsonResponse(http::status::ok,
-                                                          serializeJson({"items", toJsonArray(*result, "groupId")}),
+                                                          serializeJson(json::object{{"items", toJsonArray(*result, "groupId")}}),
                                                           version,
                                                           keepAlive);
         };
@@ -365,7 +366,7 @@ namespace presentation::http {
             }
 
             return infrastructure::http::makeJsonResponse(http::status::ok,
-                                                          serializeJson({"items", toJsonArray(*result, "userId")}),
+                                                          serializeJson(json::object{{"items", toJsonArray(*result, "userId")}}),
                                                           version,
                                                           keepAlive);
         };

@@ -15,7 +15,7 @@ namespace {
     using namespace domain::models;
     namespace json = boost::json;
 
-    json::object toPublicJson(const FileVersion& fileVersion) {
+    json::object toJson(const FileVersion& fileVersion) {
         return json::object{
             {"id", fileVersion.id},
             {"fileId", fileVersion.fileId},
@@ -25,12 +25,12 @@ namespace {
         };
     }
 
-    json::array toPublicJsonArray(const std::vector<FileVersion>& versions) {
+    json::array toJsonArray(const std::vector<FileVersion>& versions) {
         json::array items;
         items.reserve(versions.size());
 
         for (const auto& version : versions) {
-            items.emplace_back(toPublicJson(version));
+            items.emplace_back(toJson(version));
         }
 
         return items;
@@ -152,7 +152,7 @@ namespace presentation::http {
             }
 
             return infrastructure::http::makeJsonResponse(http::status::created,
-                                                          serializeJson(toPublicJson(*currentVersionResult)),
+                                                          serializeJson(toJson(*currentVersionResult)),
                                                           version,
                                                           keepAlive);
         };
@@ -195,7 +195,7 @@ namespace presentation::http {
             }
 
             return infrastructure::http::makeJsonResponse(http::status::ok,
-                                                          serializeJson(toPublicJson(*result)),
+                                                          serializeJson(toJson(*result)),
                                                           version,
                                                           keepAlive);
         };
@@ -237,11 +237,8 @@ namespace presentation::http {
                 return makeServiceErrorResponse(version, keepAlive, result.error());
             }
 
-            json::object responseBody;
-            responseBody["items"] = toPublicJsonArray(*result);
-
             return infrastructure::http::makeJsonResponse(http::status::ok,
-                                                          serializeJson(responseBody),
+                                                          serializeJson(json::object{{"items", toJsonArray(*result)}}),
                                                           version,
                                                           keepAlive);
         };
