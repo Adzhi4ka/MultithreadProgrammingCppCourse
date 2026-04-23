@@ -34,7 +34,7 @@ namespace infrastructure::http {
 
         const auto pos = target.find('?');
         if (pos != std::string::npos) {
-            target = target.substr(pos);
+            target = target.substr(0, pos);
         }
 
         if (target.empty()) {

@@ -1,6 +1,5 @@
 #pragma once
 
-#include <bit>
 #include <shared_mutex>
 #include <sodium.h>
 
@@ -28,8 +27,8 @@ namespace infrastructure::security {
         std::size_t operator()(const Token& token) const noexcept {
             static_assert(Token::kSize == 16);
 
-            const auto h1 = std::bit_cast<uint64_t>(token.bytes.data());
-            const auto h2 = std::bit_cast<uint64_t>(token.bytes.data() + 8);
+            const auto h1 = *(uint64_t*)token.bytes.data();
+            const auto h2 = *(uint64_t*)(token.bytes.data() + 8);
 
             return h1 ^ (h2 + 0x9e3779b97f4a7c15ull + (h1 << 6) + (h1 >> 2));
         }
@@ -59,7 +58,7 @@ namespace infrastructure::security {
                     return std::nullopt;
                 }
 
-                Token token{};
+                Token token;
 
                 for (std::size_t i = 0; i < Token::kSize; ++i) {
                     const auto hi = decodeHexChar(hex[2 * i]);
@@ -93,7 +92,7 @@ namespace infrastructure::security {
         public:
 
             std::string issueToken(int64_t userId) {
-                Token token{};
+                Token token;
                 randombytes_buf(token.bytes.data(), token.bytes.size());
 
                 {
