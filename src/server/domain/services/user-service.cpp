@@ -22,6 +22,8 @@ namespace domain::services {
             return std::unexpected(mapPersistenceError(userResult.error()));
         }
 
+        ruow.close();
+
         if (infrastructure::security::verifyPassword(rawPassword, userResult->passwordHash)) {
             return userResult->id;
         }

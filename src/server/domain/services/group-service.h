@@ -7,6 +7,7 @@
 #include "infrastructure/repositories/user-group-repository.h"
 
 #include <cstdint>
+#include <string>
 #include <vector>
 
 namespace domain::services {
@@ -16,6 +17,7 @@ namespace domain::services {
             using SqliteDatabase = infrastructure::db::sqlite::SqliteDatabase;
             using GroupRepository = infrastructure::repositories::GroupRepository;
             using UserGroupRepository = infrastructure::repositories::UserGroupRepository;
+            using Group = domain::models::Group;
 
             SqliteDatabase& m_database;
             GroupRepository& m_groupRepo;
@@ -29,11 +31,19 @@ namespace domain::services {
 
             ServiceResult<int64_t> createGroup(const std::string& groupName);
 
+            ServiceResult<void> deleteGroup(int64_t groupId);
+
             ServiceResult<void> addUserToGroup(int64_t userId, int64_t groupId);
 
             ServiceResult<void> removeUserFromGroup(int64_t userId, int64_t groupId);
 
+            ServiceResult<domain::models::Group> getGroupById(int64_t groupId);
+
+            ServiceResult<std::vector<domain::models::Group>> getAllGroups();
+
             ServiceResult<std::vector<int64_t>> getUserGroups(int64_t userId);
+
+            ServiceResult<std::vector<int64_t>> getGroupUsers(int64_t groupId);
 
     };
 

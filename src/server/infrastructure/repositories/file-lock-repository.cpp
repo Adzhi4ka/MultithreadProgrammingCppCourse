@@ -19,7 +19,7 @@ namespace {
 
 namespace infrastructure::repositories {
 
-    PersistenceResult<void> FileLockRepository::lock(WriteUnitOfWork& wuov, FileLock file) {
+    PersistenceResult<void> FileLockRepository::lock(WriteUnitOfWork& wuow, FileLock file) {
         constexpr const char* const sql = {
             "INSERT INTO file_lock "
                 "(file_id, user_id, lease_until, lock_token) "
@@ -27,7 +27,7 @@ namespace infrastructure::repositories {
         };
 
         try {
-            SQLite::Statement statement(wuov.connection(), sql);
+            SQLite::Statement statement(wuow.connection(), sql);
             {
                 int bindIndex = 1;
                 statement.bind(bindIndex++, file.fileId);
@@ -43,14 +43,14 @@ namespace infrastructure::repositories {
         }
     }
 
-    PersistenceResult<void> FileLockRepository::unlock(WriteUnitOfWork& wuov, int64_t fileId, int64_t lockToken) {
+    PersistenceResult<void> FileLockRepository::unlock(WriteUnitOfWork& wuow, int64_t fileId, int64_t lockToken) {
         constexpr const char* const sql = {
             "DELETE FROM file_lock "
             "WHERE file_id = ? AND lock_token = ?;"
         };
 
         try {
-            SQLite::Statement statement(wuov.connection(), sql);
+            SQLite::Statement statement(wuow.connection(), sql);
             {
                 int bindIndex = 1;
                 statement.bind(bindIndex++, fileId);
@@ -59,7 +59,7 @@ namespace infrastructure::repositories {
 
             statement.exec();
 
-            if (wuov.connection().getChanges() == 0) {
+            if (wuow.connection().getChanges() == 0) {
                 return std::unexpected(PersistenceError::NotFound);
             }
 
@@ -94,7 +94,7 @@ namespace infrastructure::repositories {
     }
 
     PersistenceResult<void> FileLockRepository::updateLease(
-        WriteUnitOfWork& wuov,
+        WriteUnitOfWork& wuow,
         int64_t fileId,
         int64_t lockToken,
         int64_t leaseUntil
@@ -106,7 +106,7 @@ namespace infrastructure::repositories {
         };
 
         try {
-            SQLite::Statement statement(wuov.connection(), sql);
+            SQLite::Statement statement(wuow.connection(), sql);
             {
                 int bindIndex = 1;
                 statement.bind(bindIndex++, leaseUntil);
@@ -116,7 +116,7 @@ namespace infrastructure::repositories {
 
             statement.exec();
 
-            if (wuov.connection().getChanges() == 0) {
+            if (wuow.connection().getChanges() == 0) {
                 return std::unexpected(PersistenceError::NotFound);
             }
 

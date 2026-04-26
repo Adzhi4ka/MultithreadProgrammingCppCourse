@@ -10,7 +10,7 @@ namespace infrastructure::id_generator {
 
         using namespace std::chrono;
 
-        static auto getTime = [](){ return duration_cast<microseconds>(system_clock::now().time_since_epoch()).count(); };
+        static auto getTime = [](){ return duration_cast<microseconds>(steady_clock::now().time_since_epoch()).count(); };
 
         static std::atomic<int64_t> lastValue{getTime()};
 

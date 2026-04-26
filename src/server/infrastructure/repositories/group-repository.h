@@ -18,8 +18,8 @@ namespace infrastructure::repositories {
 
         public:
 
-            PersistenceResult<void> create(WriteUnitOfWork& wuov, Group group);
-            PersistenceResult<void> remove(WriteUnitOfWork& wuov, int64_t id);
+            PersistenceResult<void> create(WriteUnitOfWork& wuow, Group group);
+            PersistenceResult<void> remove(WriteUnitOfWork& wuow, int64_t id);
 
             PersistenceResult<Group> getById(UnitOfWork& uow, int64_t id);
             PersistenceResult<Group> getByName(UnitOfWork& uow, const std::string& name);

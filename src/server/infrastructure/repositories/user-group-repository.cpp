@@ -2,7 +2,7 @@
 
 namespace infrastructure::repositories {
 
-    PersistenceResult<void> UserGroupRepository::addUserToGroup(WriteUnitOfWork& wuov, UserGroup userGroup) {
+    PersistenceResult<void> UserGroupRepository::addUserToGroup(WriteUnitOfWork& wuow, UserGroup userGroup) {
         constexpr const char* const sql = {
             "INSERT INTO user_group "
                 "(user_id, group_id) "
@@ -10,7 +10,7 @@ namespace infrastructure::repositories {
         };
 
         try {
-            SQLite::Statement statement(wuov.connection(), sql);
+            SQLite::Statement statement(wuow.connection(), sql);
 
             {
                 int bindIndex = 1;
@@ -25,14 +25,14 @@ namespace infrastructure::repositories {
         }
     }
 
-    PersistenceResult<void> UserGroupRepository::removeUserFromGroup(WriteUnitOfWork& wuov, UserGroup userGroup) {
+    PersistenceResult<void> UserGroupRepository::removeUserFromGroup(WriteUnitOfWork& wuow, UserGroup userGroup) {
         constexpr const char* const sql = {
             "DELETE FROM user_group "
             "WHERE user_id = ? AND group_id = ?;"
         };
 
         try {
-            SQLite::Statement statement(wuov.connection(), sql);
+            SQLite::Statement statement(wuow.connection(), sql);
 
             {
                 int bindIndex = 1;
@@ -42,7 +42,7 @@ namespace infrastructure::repositories {
 
             statement.exec();
 
-            if (wuov.connection().getChanges() == 0) {
+            if (wuow.connection().getChanges() == 0) {
                 return std::unexpected(PersistenceError::NotFound);
             }
 

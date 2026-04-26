@@ -9,6 +9,7 @@
 
 #include <cstdint>
 #include <string>
+#include <vector>
 
 namespace domain::services {
 
@@ -39,6 +40,7 @@ namespace domain::services {
 
             ServiceResult<File> getById(int64_t fileId);
             ServiceResult<File> getByLogicalName(const std::string& logicalName);
+            ServiceResult<std::vector<File>> getAll();
 
             ServiceResult<void> rename(int64_t fileId, std::string newLogicalName);
 

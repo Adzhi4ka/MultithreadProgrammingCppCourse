@@ -19,8 +19,8 @@ namespace infrastructure::repositories {
 
         public:
 
-            PersistenceResult<void> grant(WriteUnitOfWork& wuov, FileAcl fileAcl);
-            PersistenceResult<void> revoke(WriteUnitOfWork& wuov, int64_t fileId, int64_t groupId);
+            PersistenceResult<void> grant(WriteUnitOfWork& wuow, FileAcl fileAcl);
+            PersistenceResult<void> revoke(WriteUnitOfWork& wuow, int64_t fileId, int64_t groupId);
 
             PersistenceResult<AclLevel> getFileAcl(UnitOfWork& uow, int64_t fileId, int64_t groupId);
             PersistenceResult<std::vector<FileAcl>> getFileAclsToFileId(UnitOfWork& uow, int64_t fileId);

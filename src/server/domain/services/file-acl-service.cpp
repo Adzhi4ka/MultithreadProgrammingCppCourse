@@ -16,10 +16,9 @@ namespace domain::services {
           m_userGroupRepo(userGroupRepo) {}
 
     ServiceResult<AclLevel> FileAclService::getGroupAclLevel(int64_t groupId, int64_t fileId) {
-        auto uow = m_database.createReadUnitOfWork();
+        auto ruow = m_database.createReadUnitOfWork();
 
-        auto aclResult = m_fileAclRepo.getFileAcl(uow, fileId, groupId);
-
+        auto aclResult = m_fileAclRepo.getFileAcl(ruow, fileId, groupId);
         if (aclResult) {
             return *aclResult;
         }
@@ -32,17 +31,17 @@ namespace domain::services {
     }
 
     ServiceResult<AclLevel> FileAclService::getUserAclLevel(int64_t userId, int64_t fileId) {
-        auto uow = m_database.createReadUnitOfWork();
+        auto ruow = m_database.createReadUnitOfWork();
 
-        auto userGroupIdsResult = m_userGroupRepo.getGroupIdsOfUser(uow, userId);
-        if (!userGroupIdsResult) {
-            return std::unexpected(mapPersistenceError(userGroupIdsResult.error()));
+        auto groupIdsResult = m_userGroupRepo.getGroupIdsOfUser(ruow, userId);
+        if (!groupIdsResult) {
+            return std::unexpected(mapPersistenceError(groupIdsResult.error()));
         }
 
-        AclLevel userAclLevel = models::AclLevel::NO_PROPERTY;
+        AclLevel bestAcl = AclLevel::NO_PROPERTY;
 
-        for (const auto groupId : *userGroupIdsResult) {
-            auto aclResult = m_fileAclRepo.getFileAcl(uow, fileId, groupId);
+        for (const auto groupId : *groupIdsResult) {
+            auto aclResult = m_fileAclRepo.getFileAcl(ruow, fileId, groupId);
 
             if (!aclResult) {
                 if (aclResult.error() == PersistenceError::NotFound) {
@@ -52,36 +51,36 @@ namespace domain::services {
                 return std::unexpected(mapPersistenceError(aclResult.error()));
             }
 
-            auto aclLevel = *aclResult;
-
-            if (aclLevel > userAclLevel) {
-                userAclLevel = aclLevel;
+            if (*aclResult > bestAcl) {
+                bestAcl = *aclResult;
             }
 
-            if (userAclLevel == AclLevel::READ_WRITE) {
-                return userAclLevel;
+            if (bestAcl == AclLevel::READ_WRITE) {
+                return bestAcl;
             }
         }
 
-        return userAclLevel;
+        return bestAcl;
     }
 
-    ServiceResult<void> FileAclService::createGroupAclLevel(int64_t fileId, int64_t groupId, AclLevel aclLevel) {
+    ServiceResult<void> FileAclService::setGroupAclLevel(int64_t fileId,
+                                                         int64_t groupId,
+                                                         AclLevel aclLevel) {
         auto wuow = m_database.createWriteUnitOfWork();
 
-        auto grantResult = m_fileAclRepo.grant(wuow, FileAcl{.fileId = fileId,
-                                                             .groupId = groupId,
-                                                             .aclLevel = aclLevel});
+        auto setResult = m_fileAclRepo.grant(wuow, FileAcl{.fileId = fileId,
+                                                           .groupId = groupId,
+                                                           .aclLevel = aclLevel});
 
-        if (!grantResult) {
-            return std::unexpected(mapPersistenceError(grantResult.error()));
+        if (!setResult) {
+            return std::unexpected(mapPersistenceError(setResult.error()));
         }
 
         wuow.commit();
         return {};
     }
 
-    ServiceResult<void> FileAclService::removeGroupAclLevel(uint64_t fileId, uint64_t groupId) {
+    ServiceResult<void> FileAclService::removeGroupAclLevel(int64_t fileId, int64_t groupId) {
         auto wuow = m_database.createWriteUnitOfWork();
 
         auto revokeResult = m_fileAclRepo.revoke(wuow, fileId, groupId);
@@ -93,4 +92,26 @@ namespace domain::services {
         return {};
     }
 
-} // namespace domain::services
+    ServiceResult<std::vector<FileAcl>> FileAclService::getFileAcls(int64_t fileId) {
+        auto ruow = m_database.createReadUnitOfWork();
+
+        auto result = m_fileAclRepo.getFileAclsToFileId(ruow, fileId);
+        if (!result) {
+            return std::unexpected(mapPersistenceError(result.error()));
+        }
+
+        return *result;
+    }
+
+    ServiceResult<std::vector<FileAcl>> FileAclService::getGroupAcls(int64_t groupId) {
+        auto ruow = m_database.createReadUnitOfWork();
+
+        auto result = m_fileAclRepo.getGroupFileAcls(ruow, groupId);
+        if (!result) {
+            return std::unexpected(mapPersistenceError(result.error()));
+        }
+
+        return *result;
+    }
+
+}
