@@ -73,7 +73,12 @@ namespace infrastructure::file_storage {
             }
         }
 
-        auto FileStorage::size() const {
+        std::string FileStorage::makePath(uint64_t path) {
+            auto pathBuf = fillAsciiHex(path);
+            return std::string(pathBuf.data());
+        }
+
+        off_t FileStorage::size() const {
             struct stat st {};
             if (::fstat(m_fd, &st) == -1) {
                 throw std::system_error(errno, std::generic_category(), "fstat failed");

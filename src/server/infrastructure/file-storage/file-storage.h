@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cstdint>
+#include <string>
 
 #include <sys/types.h>
 
@@ -43,6 +44,8 @@ namespace infrastructure::file_storage {
 
             static void remove(uint64_t path);
 
+            static std::string makePath(uint64_t path);
+
         private:
 
             static int openImpl(std::array<char, 124> path, int flags, mode_t mode);
@@ -63,7 +66,7 @@ namespace infrastructure::file_storage {
 
         public:
 
-            auto size() const;
+            off_t size() const;
 
             inline auto getFd() const noexcept {
                 return m_fd;

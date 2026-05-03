@@ -8,6 +8,7 @@ add_library(server_presentation_http STATIC
     file-lock-controller.cpp
     file-controller.cpp
     file-version-controller.cpp
+    file-content-controller.cpp
 )
 
 target_include_directories(server_presentation_http

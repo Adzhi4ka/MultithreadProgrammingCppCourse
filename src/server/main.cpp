@@ -2,6 +2,7 @@
 #include "domain/services/file-content-service.h"
 #include "domain/services/file-lock-service.h"
 #include "domain/services/file-service.h"
+#include "domain/services/file-version-service.h"
 #include "domain/services/group-service.h"
 #include "domain/services/user-service.h"
 
@@ -24,7 +25,9 @@
 
 #include "presentation/http/auth-controller.h"
 #include "presentation/http/file-acl-controller.h"
+#include "presentation/http/file-content-controller.h"
 #include "presentation/http/file-controller.h"
+#include "presentation/http/file-version-controller.h"
 #include "presentation/http/file-lock-controller.h"
 #include "presentation/http/group-controller.h"
 #include "presentation/http/notification-controller.h"
@@ -102,6 +105,7 @@ int main() {
         domain::services::GroupService groupService{database, groupRepository, userGroupRepository};
         domain::services::FileService fileService{database, fileRepository, fileVersionRepository};
         domain::services::FileContentService fileContentService;
+        domain::services::FileVersionService fileVersionService{database, fileRepository, fileVersionRepository};
         domain::services::FileAclService fileAclService{database, fileAclRepository, userGroupRepository};
         domain::services::FileLockService fileLockService{database, fileLockRepository};
 
@@ -115,6 +119,8 @@ int main() {
         presentation::http::FileAclController fileAclController{fileAclService, tokenStore, appThreadPool};
         presentation::http::FileLockController fileLockController{fileLockService, tokenStore, appThreadPool};
         presentation::http::FileController fileController{fileService, fileContentService, fileAclService, tokenStore, appThreadPool};
+        presentation::http::FileVersionController fileVersionController{fileVersionService, fileContentService, fileAclService, tokenStore, appThreadPool};
+        presentation::http::FileContentController fileContentController{fileVersionService, fileContentService, fileAclService, tokenStore, appThreadPool};
         presentation::http::NotificationController notificationController{sessionRegistry, tokenStore};
 
         authController.registerRoutes(router);
@@ -122,6 +128,8 @@ int main() {
         fileAclController.registerRoutes(router);
         fileLockController.registerRoutes(router);
         fileController.registerRoutes(router);
+        fileVersionController.registerRoutes(router);
+        fileContentController.registerRoutes(router);
         notificationController.registerRoutes(router);
 
         auto listener = std::make_shared<infrastructure::http::Listener>(

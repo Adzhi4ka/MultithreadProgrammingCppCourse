@@ -6,6 +6,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
 
 namespace presentation::http {
 
@@ -48,15 +49,14 @@ namespace presentation::http {
         namespace beast = boost::beast;
         namespace http = beast::http;
 
-        auto response = infrastructure::http::makeJsonResponse(
-            http::status::unauthorized,
-            R"({"error":"unauthorized"})",
-            request.version(),
-            request.keep_alive()
-        );
-
+        infrastructure::http::StringResponse response{http::status::unauthorized, request.version()};
+        response.set(http::field::content_type, "application/json; charset=utf-8");
         response.set(http::field::www_authenticate, "Bearer");
-        return response;
+        response.keep_alive(request.keep_alive());
+        response.body() = R"({"error":"unauthorized"})";
+        response.prepare_payload();
+
+        return infrastructure::http::Response{std::move(response)};
     }
 
 }

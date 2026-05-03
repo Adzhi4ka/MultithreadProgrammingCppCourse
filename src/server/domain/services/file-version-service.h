@@ -42,6 +42,8 @@ namespace domain::services {
 
             ServiceResult<FileVersion> getCurrentVersion(int64_t fileId);
 
+            ServiceResult<FileVersion> getVersionById(int64_t versionId);
+
             ServiceResult<std::vector<FileVersion>> getAllVersions(int64_t fileId);
 
     };

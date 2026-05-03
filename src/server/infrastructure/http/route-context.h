@@ -3,6 +3,7 @@
 #include <boost/asio.hpp>
 #include <boost/beast/core/tcp_stream.hpp>
 #include <boost/beast/http.hpp>
+#include <boost/beast/http/message_generator.hpp>
 
 #include <atomic>
 #include <memory>
@@ -17,7 +18,9 @@ namespace infrastructure::http {
     class HttpSession;
 
     using Request = http::request<http::string_body>;
-    using Response = http::response<http::string_body>;
+    using StringResponse = http::response<http::string_body>;
+    using FileResponse = http::response<http::file_body>;
+    using Response = http::message_generator;
 
     class AsyncResponseHandle {
 
