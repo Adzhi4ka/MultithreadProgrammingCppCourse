@@ -47,7 +47,7 @@ namespace {
                 throw std::system_error(errno, std::generic_category(), "write failed");
             }
 
-            written += static_cast<std::size_t>(rc);
+            written += rc;
         }
     }
 
@@ -69,7 +69,7 @@ namespace tests {
         const unsigned ioThreads = 2;
         const unsigned workerThreads = std::max(2u, hwThreads / 2);
 
-        m_ioc = std::make_unique<net::io_context>(static_cast<int>(ioThreads));
+        m_ioc = std::make_unique<net::io_context>(ioThreads);
         m_appThreadPool = std::make_unique<infrastructure::execution::ThreadPool>(workerThreads);
 
         m_factory = std::make_unique<infrastructure::db::sqlite::DatabaseFactory>(m_dbPath, workerThreads);
@@ -316,7 +316,7 @@ namespace tests {
                                                   uint32_t maxVersionCount) {
         json::object body{
             {"logicalName", logicalName},
-            {"maxVersionCount", static_cast<int64_t>(maxVersionCount)}
+            {"maxVersionCount", maxVersionCount}
         };
 
         auto response = request(http::verb::post,
@@ -369,7 +369,7 @@ namespace tests {
         std::string data(size, '\0');
 
         for (std::size_t i = 0; i < size; ++i) {
-            data[i] = static_cast<char>('a' + ((i + salt) % 26));
+            data[i] = 'a' + ((i + salt) % 26);
         }
 
         return data;

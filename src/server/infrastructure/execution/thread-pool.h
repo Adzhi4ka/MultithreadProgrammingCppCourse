@@ -24,9 +24,6 @@ namespace infrastructure::execution {
                 m_pool.join();
             }
 
-            ThreadPool(const ThreadPool&) = delete;
-            ThreadPool& operator=(const ThreadPool&) = delete;
-
             template <class F>
             void post(F&& fn) {
                 boost::asio::post(m_pool, std::forward<F>(fn));

@@ -153,7 +153,7 @@ namespace presentation::http {
                 return;
             }
 
-            maxVersionCount = static_cast<uint32_t>(*maxVersionCountField);
+            maxVersionCount = *maxVersionCountField;
         }
 
         const auto version = req.version();

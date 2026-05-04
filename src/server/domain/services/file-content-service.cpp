@@ -51,7 +51,7 @@ namespace domain::services {
             }
 
             return DownloadFileStorage{.path = FileStorage::makePath(physicalPath),
-                                       .size = static_cast<uint64_t>(fileSize)};
+                                       .size = (uint64_t)fileSize};
         } catch (const std::system_error& ex) {
             if (ex.code().value() == ENOENT) {
                 return std::unexpected(ServiceError::NotFound);
@@ -87,7 +87,7 @@ namespace domain::services {
                     return std::unexpected(ServiceError::InternalError);
                 }
 
-                totalWritten += static_cast<std::size_t>(writtenBytes);
+                totalWritten += writtenBytes;
             }
 
             return {};
