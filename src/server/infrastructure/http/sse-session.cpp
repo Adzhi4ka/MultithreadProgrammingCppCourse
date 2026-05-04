@@ -5,17 +5,18 @@
 namespace infrastructure::http {
 
     SseSession::SseSession(beast::tcp_stream&& stream,
-                           int64_t userId,
-                           uint64_t sessionId,
-                           std::function<void(int64_t, uint64_t)> onClosed)
+                        int64_t userId,
+                        uint64_t sessionId,
+                        std::function<void(int64_t, uint64_t)> onClosed)
         : m_stream(std::move(stream))
         , m_userId(userId)
         , m_sessionId(sessionId)
-        , m_onClosed(std::move(onClosed)) {
+        , m_onClosed(std::move(onClosed))
+        , m_strand(net::make_strand(m_stream.get_executor())) {
     }
 
     void SseSession::start() {
-        net::dispatch(m_stream.get_executor(),
+        net::dispatch(m_strand,
                       beast::bind_front_handler(&SseSession::doStart, shared_from_this()));
     }
 
@@ -29,9 +30,9 @@ namespace infrastructure::http {
         enqueue("HTTP/1.1 200 OK\r\n"
                 "Content-Type: text/event-stream\r\n"
                 "Cache-Control: no-cache\r\n"
-                "Connection: keep-alive\r\n"
+                "Connection: close\r\n"
                 "X-Accel-Buffering: no\r\n"
-                "\r\n" );
+                "\r\n");
 
         enqueue(buildComment("connected"));
     }
@@ -96,7 +97,8 @@ namespace infrastructure::http {
 
         net::async_write(m_stream,
                          net::buffer(m_outbox.front()),
-                         beast::bind_front_handler(&SseSession::onWrite, shared_from_this()));
+                         net::bind_executor(m_strand,
+                                            beast::bind_front_handler(&SseSession::onWrite, shared_from_this())));
     }
 
     void SseSession::onWrite(boost::system::error_code ec, std::size_t) {

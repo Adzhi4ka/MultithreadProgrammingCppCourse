@@ -3,6 +3,7 @@
 #include "domain/services/file-acl-service.h"
 #include "domain/services/file-content-service.h"
 #include "domain/services/file-service.h"
+#include "domain/notifications/notification-publisher.h"
 
 #include "infrastructure/execution/thread-pool.h"
 #include "infrastructure/http/router.h"
@@ -19,12 +20,14 @@ namespace presentation::http {
             using FileAclService = domain::services::FileAclService;
             using AuthTokenStore = infrastructure::security::AuthTokenStore;
             using ThreadPool = infrastructure::execution::ThreadPool;
+            using NotificationPublisher = domain::notifications::NotificationPublisher;
 
             FileService& m_fileService;
             FileContentService& m_fileContentService;
             FileAclService& m_fileAclService;
             AuthTokenStore& m_tokenStore;
             ThreadPool& m_threadPool;
+            NotificationPublisher* m_notificationPublisher {nullptr};
 
         public:
 
@@ -33,6 +36,14 @@ namespace presentation::http {
                            FileAclService& fileAclService,
                            AuthTokenStore& tokenStore,
                            ThreadPool& threadPool) noexcept;
+
+
+            FileController(FileService& fileService,
+                           FileContentService& fileContentService,
+                           FileAclService& fileAclService,
+                           AuthTokenStore& tokenStore,
+                           ThreadPool& threadPool,
+                           NotificationPublisher& notificationPublisher) noexcept;
 
             void registerRoutes(Router& router);
 

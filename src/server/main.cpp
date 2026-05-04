@@ -5,6 +5,7 @@
 #include "domain/services/file-version-service.h"
 #include "domain/services/group-service.h"
 #include "domain/services/user-service.h"
+#include "domain/notifications/notification-publisher.h"
 
 #include "infrastructure/database/sqlite/database-factory.h"
 #include "infrastructure/database/sqlite/sqlite-database.h"
@@ -31,6 +32,7 @@
 #include "presentation/http/file-lock-controller.h"
 #include "presentation/http/group-controller.h"
 #include "presentation/http/notification-controller.h"
+#include "presentation/http/sse-notification-bridge.h"
 
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/ip/tcp.hpp>
@@ -112,13 +114,19 @@ int main() {
         infrastructure::security::AuthTokenStore tokenStore;
         infrastructure::http::ActiveSessionRegistry sessionRegistry;
 
+
+        domain::notifications::NotificationEventBus notificationEventBus;
+        domain::notifications::NotificationPublisher notificationPublisher{notificationEventBus};
+        presentation::http::SseNotificationBridge notificationBridge{notificationEventBus, sessionRegistry};
+        notificationEventBus.start();
+
         infrastructure::http::Router router;
 
         presentation::http::AuthController authController{userService, tokenStore, appThreadPool};
-        presentation::http::GroupController groupController{groupService, tokenStore, appThreadPool};
+        presentation::http::GroupController groupController{groupService, tokenStore, appThreadPool, notificationPublisher};
         presentation::http::FileAclController fileAclController{fileAclService, tokenStore, appThreadPool};
-        presentation::http::FileLockController fileLockController{fileLockService, tokenStore, appThreadPool};
-        presentation::http::FileController fileController{fileService, fileContentService, fileAclService, tokenStore, appThreadPool};
+        presentation::http::FileLockController fileLockController{fileLockService, tokenStore, appThreadPool, notificationPublisher};
+        presentation::http::FileController fileController{fileService, fileContentService, fileAclService, tokenStore, appThreadPool, notificationPublisher};
         presentation::http::FileVersionController fileVersionController{fileVersionService, fileContentService, fileAclService, tokenStore, appThreadPool};
         presentation::http::FileContentController fileContentController{fileVersionService, fileContentService, fileAclService, tokenStore, appThreadPool};
         presentation::http::NotificationController notificationController{sessionRegistry, tokenStore};
