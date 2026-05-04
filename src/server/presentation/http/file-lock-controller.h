@@ -1,6 +1,7 @@
 #pragma once
 
 #include "domain/services/file-lock-service.h"
+#include "domain/notifications/notification-publisher.h"
 #include "infrastructure/execution/thread-pool.h"
 #include "infrastructure/http/router.h"
 #include "infrastructure/security/auth-token-store.h"
@@ -14,16 +15,24 @@ namespace presentation::http {
             using FileLockService = domain::services::FileLockService;
             using AuthTokenStore = infrastructure::security::AuthTokenStore;
             using ThreadPool = infrastructure::execution::ThreadPool;
+            using NotificationPublisher = domain::notifications::NotificationPublisher;
 
             FileLockService& m_fileLockService;
             AuthTokenStore& m_tokenStore;
             ThreadPool& m_threadPool;
+            NotificationPublisher* m_notificationPublisher {nullptr};
 
         public:
 
             FileLockController(FileLockService& fileLockService,
                                AuthTokenStore& tokenStore,
                                ThreadPool& threadPool) noexcept;
+
+
+            FileLockController(FileLockService& fileLockService,
+                               AuthTokenStore& tokenStore,
+                               ThreadPool& threadPool,
+                               NotificationPublisher& notificationPublisher) noexcept;
 
             void registerRoutes(Router& router);
 

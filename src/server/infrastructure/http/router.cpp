@@ -1,5 +1,6 @@
 #include "router.h"
 #include <string_view>
+#include <utility>
 
 namespace infrastructure::http {
 
@@ -49,12 +50,12 @@ namespace infrastructure::http {
                               unsigned version,
                               bool keepAlive) {
 
-        Response response{status, version};
+        StringResponse response{status, version};
         response.set(http::field::content_type, "text/plain; charset=utf-8");
         response.keep_alive(keepAlive);
         response.body() = std::move(body);
         response.prepare_payload();
-        return response;
+        return Response{std::move(response)};
     }
 
     Response makeJsonResponse(http::status status,
@@ -62,12 +63,12 @@ namespace infrastructure::http {
                               unsigned version,
                               bool keepAlive) {
 
-        Response response{status, version};
+        StringResponse response{status, version};
         response.set(http::field::content_type, "application/json; charset=utf-8");
         response.keep_alive(keepAlive);
         response.body() = std::move(body);
         response.prepare_payload();
-        return response;
+        return Response{std::move(response)};
     }
 
 }

@@ -29,6 +29,7 @@ namespace infrastructure::http {
             bool m_closed {false};
 
             std::function<void(int64_t, uint64_t)> m_onClosed;
+            net::strand<net::any_io_executor> m_strand;
 
         public:
 

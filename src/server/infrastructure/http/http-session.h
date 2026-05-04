@@ -21,8 +21,7 @@ namespace infrastructure::http {
             Router& m_router;
 
             Request m_request;
-            std::optional<Response> m_response;
-
+            bool m_writeInProgress {false};
             bool m_detached {false};
 
         public:

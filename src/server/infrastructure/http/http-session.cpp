@@ -1,6 +1,7 @@
 #include "http-session.h"
 
 #include <boost/beast/core/bind_handler.hpp>
+#include <boost/beast/core/buffers_generator.hpp>
 #include <boost/beast/http.hpp>
 
 namespace infrastructure::http {
@@ -22,7 +23,7 @@ namespace infrastructure::http {
     void HttpSession::sendResponse(Response response) {
         net::post(m_stream.get_executor(),
                   [self = shared_from_this(), response = std::move(response)]() mutable {
-                      if (self->m_detached || self->m_response.has_value()) {
+                      if (self->m_detached || self->m_writeInProgress) {
                           return;
                       }
 
@@ -73,12 +74,12 @@ namespace infrastructure::http {
     }
 
     void HttpSession::writeResponse(Response response) {
-        m_response.emplace(std::move(response));
-        const bool keepAlive = m_response->keep_alive();
+        m_writeInProgress = true;
+        const bool keepAlive = response.keep_alive();
 
-        http::async_write(
+        beast::async_write(
             m_stream,
-            *m_response,
+            std::move(response),
             [self = shared_from_this(), keepAlive](beast::error_code ec, std::size_t bytesTransferred) {
                 self->onWrite(ec, bytesTransferred, keepAlive);
             }
@@ -86,11 +87,11 @@ namespace infrastructure::http {
     }
 
     void HttpSession::onWrite(beast::error_code ec, std::size_t, bool keepAlive) {
+        m_writeInProgress = false;
+
         if (ec) {
             return;
         }
-
-        m_response.reset();
 
         if (!keepAlive) {
             doClose();

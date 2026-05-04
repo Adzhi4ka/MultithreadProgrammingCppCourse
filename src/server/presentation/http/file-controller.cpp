@@ -77,6 +77,21 @@ namespace presentation::http {
           m_tokenStore(tokenStore),
           m_threadPool(threadPool) {}
 
+
+    FileController::FileController(FileService& fileService,
+                                   FileContentService& fileContentService,
+                                   FileAclService& fileAclService,
+                                   AuthTokenStore& tokenStore,
+                                   ThreadPool& threadPool,
+                                   NotificationPublisher& notificationPublisher) noexcept
+        : FileController(fileService,
+                         fileContentService,
+                         fileAclService,
+                         tokenStore,
+                         threadPool) {
+        m_notificationPublisher = &notificationPublisher;
+    }
+
     void FileController::registerRoutes(Router& router) {
         router.add(http::verb::post, "/api/files",
                    [this](RouteContext& ctx) {
@@ -172,6 +187,13 @@ namespace presentation::http {
             auto fileResult = m_fileService.getById(*createFileResult);
             if (!fileResult) {
                 return makeServiceErrorResponse(version, keepAlive, fileResult.error());
+            }
+
+            if (m_notificationPublisher) {
+                m_notificationPublisher->fileCreated(fileResult->id,
+                                                     createdByUser,
+                                                     fileResult->currentVersionId,
+                                                     fileResult->fullLogicalName);
             }
 
             return infrastructure::http::makeJsonResponse(http::status::created,
@@ -354,7 +376,6 @@ namespace presentation::http {
             if (!fileResult) {
                 return makeServiceErrorResponse(version, keepAlive, fileResult.error());
             }
-
             return infrastructure::http::makeJsonResponse(http::status::ok,
                                                           serializeJson(toJson(*fileResult)),
                                                           version,

@@ -53,6 +53,15 @@ namespace presentation::http {
           m_tokenStore(tokenStore),
           m_threadPool(threadPool) {}
 
+
+    GroupController::GroupController(GroupService& groupService,
+                                     AuthTokenStore& tokenStore,
+                                     ThreadPool& threadPool,
+                                     NotificationPublisher& notificationPublisher) noexcept
+        : GroupController(groupService, tokenStore, threadPool) {
+        m_notificationPublisher = &notificationPublisher;
+    }
+
     void GroupController::registerRoutes(Router& router) {
         router.add(http::verb::post, "/api/groups",
                    [this](RouteContext& ctx) { handleCreateGroup(ctx); });
@@ -82,7 +91,8 @@ namespace presentation::http {
     void GroupController::handleCreateGroup(RouteContext& ctx) {
         auto& req = ctx.request();
 
-        if (!authenticateUserId(req, m_tokenStore)) {
+        const auto assignedByUserId = authenticateUserId(req, m_tokenStore);
+        if (!assignedByUserId) {
             ctx.reply(makeUnauthorizedResponse(req));
             return;
         }
@@ -223,7 +233,8 @@ namespace presentation::http {
     void GroupController::handleAddUserToGroup(RouteContext& ctx) {
         auto& req = ctx.request();
 
-        if (!authenticateUserId(req, m_tokenStore)) {
+        const auto assignedByUserId = authenticateUserId(req, m_tokenStore);
+        if (!assignedByUserId) {
             ctx.reply(makeUnauthorizedResponse(req));
             return;
         }
@@ -244,10 +255,19 @@ namespace presentation::http {
         const auto version = req.version();
         const bool keepAlive = req.keep_alive();
 
-        auto task = [this, version, keepAlive, userId = *userId, groupId = *groupId]() -> infrastructure::http::Response {
+        auto task = [this,
+                     version,
+                     keepAlive,
+                     userId = *userId,
+                     groupId = *groupId,
+                     assignedByUserId = *assignedByUserId]() -> infrastructure::http::Response {
             auto result = m_groupService.addUserToGroup(userId, groupId);
             if (!result) {
                 return makeServiceErrorResponse(version, keepAlive, result.error());
+            }
+
+            if (m_notificationPublisher) {
+                m_notificationPublisher->groupAssigned(userId, groupId, assignedByUserId);
             }
 
             return infrastructure::http::makeJsonResponse(http::status::ok,

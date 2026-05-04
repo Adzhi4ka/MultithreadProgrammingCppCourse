@@ -36,6 +36,15 @@ namespace presentation::http {
           m_tokenStore(tokenStore),
           m_threadPool(threadPool) {}
 
+
+    FileLockController::FileLockController(FileLockService& fileLockService,
+                                           AuthTokenStore& tokenStore,
+                                           ThreadPool& threadPool,
+                                           NotificationPublisher& notificationPublisher) noexcept
+        : FileLockController(fileLockService, tokenStore, threadPool) {
+        m_notificationPublisher = &notificationPublisher;
+    }
+
     void FileLockController::registerRoutes(Router& router) {
         router.add(http::verb::post, "/api/file-locks",
                    [this](RouteContext& ctx) {
@@ -99,6 +108,13 @@ namespace presentation::http {
                 return makeServiceErrorResponse(version, keepAlive, result.error());
             }
 
+            if (m_notificationPublisher) {
+                m_notificationPublisher->fileLocked(result->fileId,
+                                                    result->userId,
+                                                    result->leaseUntil,
+                                                    result->lockToken);
+            }
+
             return infrastructure::http::makeJsonResponse(http::status::created,
                                                           serializeJson(toJson(*result)),
                                                           version,
@@ -149,7 +165,6 @@ namespace presentation::http {
             if (!result) {
                 return makeServiceErrorResponse(version, keepAlive, result.error());
             }
-
             return infrastructure::http::makeJsonResponse(http::status::ok,
                                                           R"({"status":"ok"})",
                                                           version,
@@ -192,7 +207,6 @@ namespace presentation::http {
             if (!result) {
                 return makeServiceErrorResponse(version, keepAlive, result.error());
             }
-
             return infrastructure::http::makeJsonResponse(http::status::ok,
                                                           R"({"status":"ok"})",
                                                           version,
@@ -230,7 +244,6 @@ namespace presentation::http {
             if (!result) {
                 return makeServiceErrorResponse(version, keepAlive, result.error());
             }
-
             return infrastructure::http::makeJsonResponse(http::status::ok,
                                                           serializeJson(toJson(*result)),
                                                           version,

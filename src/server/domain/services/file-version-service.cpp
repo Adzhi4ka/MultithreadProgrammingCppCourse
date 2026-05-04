@@ -95,6 +95,17 @@ namespace domain::services {
         return *versionResult;
     }
 
+    ServiceResult<FileVersion> FileVersionService::getVersionById(int64_t versionId) {
+        auto ruow = m_database.createReadUnitOfWork();
+
+        auto versionResult = m_fileVersionRepo.getVersion(ruow, versionId);
+        if (!versionResult) {
+            return std::unexpected(mapPersistenceError(versionResult.error()));
+        }
+
+        return *versionResult;
+    }
+
     ServiceResult<std::vector<FileVersion>> FileVersionService::getAllVersions(int64_t fileId) {
         auto ruow = m_database.createReadUnitOfWork();
 

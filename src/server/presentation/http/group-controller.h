@@ -1,6 +1,7 @@
 #pragma once
 
 #include "domain/services/group-service.h"
+#include "domain/notifications/notification-publisher.h"
 #include "infrastructure/execution/thread-pool.h"
 #include "infrastructure/http/router.h"
 #include "infrastructure/security/auth-token-store.h"
@@ -15,16 +16,24 @@ namespace presentation::http {
             using GroupService = domain::services::GroupService;
             using AuthTokenStore = infrastructure::security::AuthTokenStore;
             using ThreadPool = infrastructure::execution::ThreadPool;
+            using NotificationPublisher = domain::notifications::NotificationPublisher;
 
             GroupService& m_groupService;
             infrastructure::security::AuthTokenStore& m_tokenStore;
             infrastructure::execution::ThreadPool& m_threadPool;
+            NotificationPublisher* m_notificationPublisher {nullptr};
 
         public:
 
             GroupController(GroupService& groupService,
                             AuthTokenStore& tokenStore,
                             ThreadPool& threadPool) noexcept;
+
+
+            GroupController(GroupService& groupService,
+                            AuthTokenStore& tokenStore,
+                            ThreadPool& threadPool,
+                            NotificationPublisher& notificationPublisher) noexcept;
 
             void registerRoutes(Router& router);
 

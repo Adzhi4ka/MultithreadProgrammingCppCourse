@@ -6,6 +6,8 @@
 #include <mutex>
 #include <queue>
 #include <thread>
+#include <tuple>
+#include <variant>
 
 namespace domain::notifications::events {
 
