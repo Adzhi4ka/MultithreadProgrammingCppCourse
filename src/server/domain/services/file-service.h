@@ -4,8 +4,11 @@
 #include "domain/services/service-result.h"
 
 #include "infrastructure/database/sqlite/sqlite-database.h"
+#include "infrastructure/repositories/file-acl-repository.h"
 #include "infrastructure/repositories/file-repository.h"
 #include "infrastructure/repositories/file-version-repository.h"
+#include "infrastructure/repositories/group-repository.h"
+#include "infrastructure/repositories/user-repository.h"
 
 #include <cstdint>
 #include <string>
@@ -18,6 +21,9 @@ namespace domain::services {
             using SqliteDatabase = infrastructure::db::sqlite::SqliteDatabase;
             using FileRepository = infrastructure::repositories::FileRepository;
             using FileVersionRepository = infrastructure::repositories::FileVersionRepository;
+            using UserRepository = infrastructure::repositories::UserRepository;
+            using GroupRepository = infrastructure::repositories::GroupRepository;
+            using FileAclRepository = infrastructure::repositories::FileAclRepository;
             using File = domain::models::File;
             using FileVersion = domain::models::FileVersion;
 
@@ -26,12 +32,18 @@ namespace domain::services {
             SqliteDatabase& m_database;
             FileRepository& m_fileRepo;
             FileVersionRepository& m_fileVersionRepo;
+            UserRepository& m_userRepo;
+            GroupRepository& m_groupRepo;
+            FileAclRepository& m_fileAclRepo;
 
         public:
 
             FileService(SqliteDatabase& database,
                         FileRepository& fileRepo,
-                        FileVersionRepository& fileVersionRepo) noexcept;
+                        FileVersionRepository& fileVersionRepo,
+                        UserRepository& userRepo,
+                        GroupRepository& groupRepo,
+                        FileAclRepository& fileAclRepo) noexcept;
 
             ServiceResult<int64_t> create(std::string logicalName,
                                           int64_t createdByUser,

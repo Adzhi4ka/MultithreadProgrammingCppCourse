@@ -20,10 +20,16 @@ namespace domain::services {
 
     FileService::FileService(SqliteDatabase& database,
                              FileRepository& fileRepo,
-                             FileVersionRepository& fileVersionRepo) noexcept
+                             FileVersionRepository& fileVersionRepo,
+                             UserRepository& userRepo,
+                             GroupRepository& groupRepo,
+                             FileAclRepository& fileAclRepo) noexcept
     : m_database(database),
       m_fileRepo(fileRepo),
-      m_fileVersionRepo(fileVersionRepo) {}
+      m_fileVersionRepo(fileVersionRepo),
+      m_userRepo(userRepo),
+      m_groupRepo(groupRepo),
+      m_fileAclRepo(fileAclRepo) {}
 
     ServiceResult<int64_t> FileService::create(std::string logicalName,
                                                int64_t createdByUser,
@@ -56,6 +62,24 @@ namespace domain::services {
 
         if (!createVersionResult) {
             return std::unexpected(mapPersistenceError(createVersionResult.error()));
+        }
+
+        auto userResult = m_userRepo.getById(wuow, createdByUser);
+        if (!userResult) {
+            return std::unexpected(mapPersistenceError(userResult.error()));
+        }
+
+        auto ownerGroupResult = m_groupRepo.getByName(wuow, userResult->login);
+        if (!ownerGroupResult) {
+            return std::unexpected(mapPersistenceError(ownerGroupResult.error()));
+        }
+
+        auto grantOwnerGroupResult = m_fileAclRepo.grant(wuow, FileAcl{.fileId = fileId,
+                                                                       .groupId = ownerGroupResult->id,
+                                                                       .aclLevel = AclLevel::READ_WRITE});
+
+        if (!grantOwnerGroupResult) {
+            return std::unexpected(mapPersistenceError(grantOwnerGroupResult.error()));
         }
 
         wuow.commit();

@@ -10,9 +10,13 @@ namespace {
 namespace domain::services {
 
     UserService::UserService(SqliteDatabase& database,
-                             UserRepository& userRepo) noexcept
+                             UserRepository& userRepo,
+                             GroupRepository& groupRepo,
+                             UserGroupRepository& userGroupRepo) noexcept
         : m_database(database),
-          m_userRepo(userRepo) {}
+          m_userRepo(userRepo),
+          m_groupRepo(groupRepo),
+          m_userGroupRepo(userGroupRepo) {}
 
     ServiceResult<int64_t> UserService::login(const std::string& login, const std::string& rawPassword) {
         auto ruow = m_database.createReadUnitOfWork();
@@ -34,19 +38,34 @@ namespace domain::services {
     ServiceResult<int64_t> UserService::addUser(std::string login, std::string rawPassword) {
         auto wuow = m_database.createWriteUnitOfWork();
 
-        int64_t newId = infrastructure::id_generator::generateId();
+        const int64_t newUserId = infrastructure::id_generator::generateId();
+        const int64_t newGroupId = infrastructure::id_generator::generateId();
+        const std::string ownerGroupName = login;
 
-        auto createResult = m_userRepo.create(wuow, User{.id = newId,
-                                                         .login = std::move(login),
-                                                         .passwordHash = infrastructure::security::hashPassword(rawPassword)});
+        auto createUserResult = m_userRepo.create(wuow, User{.id = newUserId,
+                                                             .login = std::move(login),
+                                                             .passwordHash = infrastructure::security::hashPassword(rawPassword)});
 
-        if (!createResult) {
-            return std::unexpected(mapPersistenceError(createResult.error()));
+        if (!createUserResult) {
+            return std::unexpected(mapPersistenceError(createUserResult.error()));
+        }
+
+        auto createGroupResult = m_groupRepo.create(wuow, Group{.id = newGroupId,
+                                                                .name = ownerGroupName});
+
+        if (!createGroupResult) {
+            return std::unexpected(mapPersistenceError(createGroupResult.error()));
+        }
+
+        auto addUserToGroupResult = m_userGroupRepo.addUserToGroup(wuow, UserGroup{.userId = newUserId,
+                                                                                   .groupId = newGroupId});
+
+        if (!addUserToGroupResult) {
+            return std::unexpected(mapPersistenceError(addUserToGroupResult.error()));
         }
 
         wuow.commit();
-
-        return newId;
+        return newUserId;
     }
 
 }

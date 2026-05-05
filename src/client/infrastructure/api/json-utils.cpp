@@ -1,6 +1,5 @@
 #include "json-utils.h"
 #include "api-client.h"
-#include "qtypes.h"
 
 #include <QJsonDocument>
 #include <QJsonParseError>
@@ -184,6 +183,24 @@ namespace client::infrastructure::api {
         for (const auto& item : *items) {
             if (item.isObject()) {
                 result.emplace_back(parseRemoteFile(item.toObject()));
+            }
+        }
+
+        return result;
+    }
+
+    std::vector<domain::models::FileVersion> parseFileVersionItems(const QJsonObject& root) {
+        std::vector<domain::models::FileVersion> result;
+
+        const auto items = getArrayField(root, u"items");
+        if (!items) {
+            return result;
+        }
+
+        result.reserve(items->size());
+        for (const auto& item : *items) {
+            if (item.isObject()) {
+                result.emplace_back(parseFileVersion(item.toObject()));
             }
         }
 

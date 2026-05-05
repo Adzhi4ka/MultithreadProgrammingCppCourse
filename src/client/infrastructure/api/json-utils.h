@@ -38,6 +38,7 @@ namespace client::infrastructure::api {
     domain::models::Group parseGroup(const QJsonObject& object);
 
     std::vector<domain::models::RemoteFile> parseRemoteFileItems(const QJsonObject& root);
+    std::vector<domain::models::FileVersion> parseFileVersionItems(const QJsonObject& root);
     std::vector<domain::models::FileAcl> parseFileAclItems(const QJsonObject& root);
     std::vector<domain::models::Group> parseGroupItems(const QJsonObject& root);
 

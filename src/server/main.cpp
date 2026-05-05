@@ -103,9 +103,9 @@ int main() {
         infrastructure::repositories::FileAclRepository fileAclRepository;
         infrastructure::repositories::FileLockRepository fileLockRepository;
 
-        domain::services::UserService userService{database, userRepository};
+        domain::services::UserService userService{database, userRepository, groupRepository, userGroupRepository};
         domain::services::GroupService groupService{database, groupRepository, userGroupRepository};
-        domain::services::FileService fileService{database, fileRepository, fileVersionRepository};
+        domain::services::FileService fileService{database, fileRepository, fileVersionRepository, userRepository, groupRepository, fileAclRepository};
         domain::services::FileContentService fileContentService;
         domain::services::FileVersionService fileVersionService{database, fileRepository, fileVersionRepository};
         domain::services::FileAclService fileAclService{database, fileAclRepository, userGroupRepository};

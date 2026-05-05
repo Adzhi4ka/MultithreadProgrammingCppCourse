@@ -7,6 +7,7 @@ add_library(client_infrastructure_api STATIC
     file-lock-api.cpp
     file-acl-api.cpp
     group-api.cpp
+    file-version-api.cpp
 
     api-result.h
     api-client.h
@@ -17,6 +18,7 @@ add_library(client_infrastructure_api STATIC
     file-lock-api.h
     file-acl-api.h
     group-api.h
+    file-version-api.h
 )
 
 target_include_directories(client_infrastructure_api

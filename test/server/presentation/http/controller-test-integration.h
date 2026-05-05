@@ -13,7 +13,6 @@
 #include "infrastructure/database/sqlite/database-factory.h"
 #include "infrastructure/database/sqlite/sqlite-database.h"
 #include "infrastructure/execution/thread-pool.h"
-#include "infrastructure/file-storage/file-storage.h"
 #include "infrastructure/http/active-session-registry.h"
 #include "infrastructure/http/listener.h"
 #include "infrastructure/http/router.h"

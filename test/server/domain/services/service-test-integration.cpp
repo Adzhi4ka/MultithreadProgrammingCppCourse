@@ -27,7 +27,9 @@ namespace tests {
 
         m_userService = std::make_unique<UserService>(
             *m_database,
-            *m_userRepo
+            *m_userRepo,
+            *m_groupRepo,
+            *m_userGroupRepo
         );
 
         m_groupService = std::make_unique<GroupService>(
@@ -45,7 +47,10 @@ namespace tests {
         m_fileService = std::make_unique<FileService>(
             *m_database,
             *m_fileRepo,
-            *m_fileVersionRepo
+            *m_fileVersionRepo,
+            *m_userRepo,
+            *m_groupRepo,
+            *m_fileAclRepo
         );
 
         m_fileVersionService = std::make_unique<FileVersionService>(
