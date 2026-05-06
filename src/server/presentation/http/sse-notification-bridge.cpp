@@ -23,6 +23,12 @@ namespace presentation::http {
             }
         );
 
+        m_fileLockedConnection = eventBus.subscribe<domain::notifications::FileUnlockedEvent>(
+            [this](const domain::notifications::FileUnlockedEvent& event) {
+                onFileUnlocked(event);
+            }
+        );
+
         m_groupAssignedConnection = eventBus.subscribe<domain::notifications::GroupAssignedEvent>(
             [this](const domain::notifications::GroupAssignedEvent& event) {
                 onGroupAssigned(event);
@@ -54,6 +60,16 @@ namespace presentation::http {
         };
 
         m_registry.publishToAll("file_locked", serializeJson(payload));
+    }
+
+    void SseNotificationBridge::onFileUnlocked(const domain::notifications::FileUnlockedEvent& event) {
+        json::object payload{
+            {"type", "file_unlocked"},
+            {"fileId", event.fileId},
+            {"lockToken", event.lockToken}
+        };
+
+        m_registry.publishToAll("file_unlocked", serializeJson(payload));
     }
 
     void SseNotificationBridge::onGroupAssigned(const domain::notifications::GroupAssignedEvent& event) {

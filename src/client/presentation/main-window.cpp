@@ -440,6 +440,7 @@ namespace client::presentation {
 
         if (event.name == QStringLiteral("file_created")
             || event.name == QStringLiteral("file_locked")
+            || event.name == QStringLiteral("file_unlocked")
             || event.name == QStringLiteral("group_assigned")) {
             refreshFiles();
         }

@@ -21,6 +21,11 @@ namespace domain::notifications {
         int64_t lockToken;
     };
 
+    struct FileUnlockedEvent {
+        int64_t fileId;
+        int64_t lockToken;
+    };
+
     struct GroupAssignedEvent {
         int64_t userId;
         int64_t groupId;
@@ -29,7 +34,8 @@ namespace domain::notifications {
     };
 
     using NotificationEventBus = events::EventBus<FileCreatedEvent,
-                                                 FileLockedEvent,
-                                                 GroupAssignedEvent>;
+                                                  FileLockedEvent,
+                                                  GroupAssignedEvent,
+                                                  FileUnlockedEvent>;
 
 }

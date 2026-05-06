@@ -207,6 +207,12 @@ namespace presentation::http {
             if (!result) {
                 return makeServiceErrorResponse(version, keepAlive, result.error());
             }
+
+            if (m_notificationPublisher) {
+                m_notificationPublisher->fileUnlocked(fileId,
+                                                      lockToken);
+            }
+
             return infrastructure::http::makeJsonResponse(http::status::ok,
                                                           R"({"status":"ok"})",
                                                           version,

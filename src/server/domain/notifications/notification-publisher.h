@@ -41,6 +41,14 @@ namespace domain::notifications {
                 });
             }
 
+            void fileUnlocked(int64_t fileId,
+                              int64_t lockToken) {
+                m_eventBus.post(FileUnlockedEvent{
+                    .fileId = fileId,
+                    .lockToken = lockToken
+                });
+            }
+
             void groupAssigned(int64_t userId,
                                int64_t groupId,
                                int64_t assignedByUserId) {

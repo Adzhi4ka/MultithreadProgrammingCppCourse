@@ -13,6 +13,7 @@ namespace presentation::http {
 
             boost::signals2::scoped_connection m_fileCreatedConnection;
             boost::signals2::scoped_connection m_fileLockedConnection;
+            boost::signals2::scoped_connection m_fileUnlockedConnection;
             boost::signals2::scoped_connection m_groupAssignedConnection;
 
         public:
@@ -24,6 +25,7 @@ namespace presentation::http {
 
             void onFileCreated(const domain::notifications::FileCreatedEvent& event);
             void onFileLocked(const domain::notifications::FileLockedEvent& event);
+            void onFileUnlocked(const domain::notifications::FileUnlockedEvent& event);
             void onGroupAssigned(const domain::notifications::GroupAssignedEvent& event);
 
     };
