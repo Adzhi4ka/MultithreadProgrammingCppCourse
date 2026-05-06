@@ -5,13 +5,17 @@
 #include <QJsonObject>
 #include <QUrlQuery>
 
+namespace {
+    using FileLock = client::domain::models::FileLock;
+}
+
 namespace client::infrastructure::api {
 
     FileLockApi::FileLockApi(ApiClient& apiClient, QObject* parent)
         : QObject(parent),
           m_apiClient(apiClient) {}
 
-    void FileLockApi::acquire(qint64 fileId, qint64 lockDurationSec, LockCallback callback) {
+    void FileLockApi::acquire(qint64 fileId, qint64 lockDurationSec, std::function<void(ApiResult<FileLock>)> callback) {
         QJsonObject body{{"fileId", fileId}};
         if (lockDurationSec > 0) {
             body.insert("lockDurationSec", lockDurationSec);
@@ -22,7 +26,7 @@ namespace client::infrastructure::api {
         });
     }
 
-    void FileLockApi::renew(qint64 fileId, qint64 lockToken, qint64 lockDurationSec, VoidCallback callback) {
+    void FileLockApi::renew(qint64 fileId, qint64 lockToken, qint64 lockDurationSec, std::function<void(ApiResult<void>)> callback) {
         QJsonObject body{
             {"fileId", fileId},
             {"lockToken", lockToken},
@@ -42,7 +46,7 @@ namespace client::infrastructure::api {
         });
     }
 
-    void FileLockApi::release(qint64 fileId, qint64 lockToken, VoidCallback callback) {
+    void FileLockApi::release(qint64 fileId, qint64 lockToken, std::function<void(ApiResult<void>)> callback) {
         QUrlQuery query;
         query.addQueryItem("fileId", QString::number(fileId));
         query.addQueryItem("lockToken", QString::number(lockToken));
@@ -57,7 +61,7 @@ namespace client::infrastructure::api {
         });
     }
 
-    void FileLockApi::getActive(qint64 fileId, LockCallback callback) {
+    void FileLockApi::getActive(qint64 fileId, std::function<void(ApiResult<FileLock>)> callback) {
         QUrlQuery query;
         query.addQueryItem("fileId", QString::number(fileId));
 
@@ -66,7 +70,7 @@ namespace client::infrastructure::api {
         });
     }
 
-    FileLockApi::LockResult FileLockApi::parseLockResponse(const RawApiResponse& response) {
+    ApiResult<FileLock> FileLockApi::parseLockResponse(const RawApiResponse& response) {
         if (!response.isSuccessStatus()) {
             return apiFailure(makeHttpError(response, "file lock operation failed"));
         }

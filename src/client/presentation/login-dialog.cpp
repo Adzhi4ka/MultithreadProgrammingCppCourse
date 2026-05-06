@@ -13,13 +13,14 @@
 
 namespace client::presentation {
 
-    LoginDialog::LoginDialog(infrastructure::api::ApiClient& apiClient,
-                             infrastructure::api::AuthApi& authApi,
-                             QWidget* parent)
+    LoginDialog::LoginDialog(application::ClientRuntime& runtime, QWidget* parent)
         : QDialog(parent),
-          m_apiClient(apiClient),
-          m_authApi(authApi) {
+          m_runtime(runtime) {
         buildUi();
+        connect(&m_runtime,
+                &application::ClientRuntime::authenticationFinished,
+                this,
+                &LoginDialog::handleAuthenticationFinished);
     }
 
     domain::models::UserSession LoginDialog::session() const {
@@ -27,23 +28,21 @@ namespace client::presentation {
     }
 
     void LoginDialog::buildUi() {
-        setWindowTitle("File Storage Client: login");
+        setWindowTitle(QStringLiteral("File Storage Client: login"));
         setMinimumWidth(420);
 
-        m_baseUrlEdit = new QLineEdit(m_apiClient.baseUrl().isEmpty()
-                                      ? QStringLiteral("http://127.0.0.1:8080")
-                                      : m_apiClient.baseUrl().toString(), this);
+        m_baseUrlEdit = new QLineEdit(QStringLiteral("http://127.0.0.1:8080"), this);
         m_loginEdit = new QLineEdit(this);
         m_passwordEdit = new QLineEdit(this);
         m_passwordEdit->setEchoMode(QLineEdit::Password);
 
         auto* form = new QFormLayout;
-        form->addRow("Server URL", m_baseUrlEdit);
-        form->addRow("Login", m_loginEdit);
-        form->addRow("Password", m_passwordEdit);
+        form->addRow(QStringLiteral("Server URL"), m_baseUrlEdit);
+        form->addRow(QStringLiteral("Login"), m_loginEdit);
+        form->addRow(QStringLiteral("Password"), m_passwordEdit);
 
-        m_loginButton = new QPushButton("Login", this);
-        m_registerButton = new QPushButton("Register", this);
+        m_loginButton = new QPushButton(QStringLiteral("Login"), this);
+        m_registerButton = new QPushButton(QStringLiteral("Register"), this);
         m_statusLabel = new QLabel(this);
         m_statusLabel->setWordWrap(true);
 
@@ -76,37 +75,32 @@ namespace client::presentation {
         const auto password = m_passwordEdit->text();
 
         if (!baseUrl.isValid() || baseUrl.scheme().isEmpty() || baseUrl.host().isEmpty()) {
-            QMessageBox::warning(this, "Invalid server URL", "Enter valid server URL, for example http://127.0.0.1:8080");
+            QMessageBox::warning(this,
+                                 QStringLiteral("Invalid server URL"),
+                                 QStringLiteral("Enter valid server URL, for example http://127.0.0.1:8080"));
             return;
         }
 
         if (login.isEmpty() || password.isEmpty()) {
-            QMessageBox::warning(this, "Invalid credentials", "Login and password are required");
+            QMessageBox::warning(this, QStringLiteral("Invalid credentials"), QStringLiteral("Login and password are required"));
             return;
         }
 
-        m_apiClient.setBaseUrl(baseUrl);
         setBusy(true);
-        m_statusLabel->setText(registration ? "Registering..." : "Logging in...");
+        m_statusLabel->setText(registration ? QStringLiteral("Registering...") : QStringLiteral("Logging in..."));
+        m_runtime.authenticate(baseUrl, login, password, registration);
+    }
 
-        auto callback = [this](infrastructure::api::AuthApi::SessionResult result) mutable {
-            setBusy(false);
+    void LoginDialog::handleAuthenticationFinished(ApiResult<domain::models::UserSession> result) {
+        setBusy(false);
 
-            if (!result) {
-                showError(result.error());
-                return;
-            }
-
-            m_session = std::move(*result);
-            m_apiClient.setBearerToken(m_session.token);
-            accept();
-        };
-
-        if (registration) {
-            m_authApi.registerUser(login, password, std::move(callback));
-        } else {
-            m_authApi.login(login, password, std::move(callback));
+        if (!result) {
+            showError(result.error());
+            return;
         }
+
+        m_session = std::move(*result);
+        accept();
     }
 
     void LoginDialog::setBusy(bool busy) {
@@ -117,12 +111,12 @@ namespace client::presentation {
         m_registerButton->setEnabled(!busy);
     }
 
-    void LoginDialog::showError(const infrastructure::api::ApiError& error) {
+    void LoginDialog::showError(const ApiError& error) {
         const auto message = QStringLiteral("%1%2")
             .arg(error.httpStatus > 0 ? QStringLiteral("HTTP %1: ").arg(error.httpStatus) : QStringLiteral("Network error: "))
             .arg(error.message.isEmpty() ? QStringLiteral("unknown error") : error.message);
         m_statusLabel->setText(message);
-        QMessageBox::warning(this, "Authentication failed", message);
+        QMessageBox::warning(this, QStringLiteral("Authentication failed"), message);
     }
 
 }

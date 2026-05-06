@@ -5,6 +5,12 @@
 #include <QJsonObject>
 #include <QUrlQuery>
 
+namespace {
+    using FileAcl = client::domain::models::FileAcl;
+    using UserFileAcl = client::domain::models::UserFileAcl;
+    using AclLevel = client::domain::models::AclLevel;
+}
+
 namespace client::infrastructure::api {
 
     FileAclApi::FileAclApi(ApiClient& apiClient, QObject* parent)
@@ -13,12 +19,12 @@ namespace client::infrastructure::api {
 
     void FileAclApi::setGroupAcl(qint64 fileId,
                                  qint64 groupId,
-                                 domain::models::AclLevel aclLevel,
-                                 GroupAclCallback callback) {
+                                 AclLevel aclLevel,
+                                 std::function<void(ApiResult<FileAcl>)> callback) {
         QJsonObject body{
             {"fileId", fileId},
             {"groupId", groupId},
-            {"aclLevel", domain::models::toServerString(aclLevel)},
+            {"aclLevel", toServerString(aclLevel)},
         };
 
         m_apiClient.putJson("/api/file-acl/groups", body, [callback = std::move(callback)](RawApiResponse response) mutable {
@@ -26,7 +32,7 @@ namespace client::infrastructure::api {
         });
     }
 
-    void FileAclApi::removeGroupAcl(qint64 fileId, qint64 groupId, VoidCallback callback) {
+    void FileAclApi::removeGroupAcl(qint64 fileId, qint64 groupId, std::function<void(ApiResult<void>)> callback) {
         QUrlQuery query;
         query.addQueryItem("fileId", QString::number(fileId));
         query.addQueryItem("groupId", QString::number(groupId));
@@ -41,7 +47,7 @@ namespace client::infrastructure::api {
         });
     }
 
-    void FileAclApi::getGroupAcl(qint64 fileId, qint64 groupId, GroupAclCallback callback) {
+    void FileAclApi::getGroupAcl(qint64 fileId, qint64 groupId, std::function<void(ApiResult<FileAcl>)> callback) {
         QUrlQuery query;
         query.addQueryItem("fileId", QString::number(fileId));
         query.addQueryItem("groupId", QString::number(groupId));
@@ -51,7 +57,7 @@ namespace client::infrastructure::api {
         });
     }
 
-    void FileAclApi::getUserAcl(qint64 fileId, qint64 userId, UserAclCallback callback) {
+    void FileAclApi::getUserAcl(qint64 fileId, qint64 userId, std::function<void(ApiResult<UserFileAcl>)> callback) {
         QUrlQuery query;
         query.addQueryItem("fileId", QString::number(fileId));
         query.addQueryItem("userId", QString::number(userId));
@@ -61,7 +67,7 @@ namespace client::infrastructure::api {
         });
     }
 
-    void FileAclApi::getByFile(qint64 fileId, GroupAclListCallback callback) {
+    void FileAclApi::getByFile(qint64 fileId, std::function<void(ApiResult<std::vector<FileAcl>>)> callback) {
         QUrlQuery query;
         query.addQueryItem("fileId", QString::number(fileId));
 
@@ -70,7 +76,7 @@ namespace client::infrastructure::api {
         });
     }
 
-    void FileAclApi::getByGroup(qint64 groupId, GroupAclListCallback callback) {
+    void FileAclApi::getByGroup(qint64 groupId, std::function<void(ApiResult<std::vector<FileAcl>>)> callback) {
         QUrlQuery query;
         query.addQueryItem("groupId", QString::number(groupId));
 
@@ -79,7 +85,7 @@ namespace client::infrastructure::api {
         });
     }
 
-    FileAclApi::GroupAclResult FileAclApi::parseGroupAclResponse(const RawApiResponse& response) {
+    ApiResult<FileAcl> FileAclApi::parseGroupAclResponse(const RawApiResponse& response) {
         if (!response.isSuccessStatus()) {
             return apiFailure(makeHttpError(response, "ACL operation failed"));
         }
@@ -93,7 +99,7 @@ namespace client::infrastructure::api {
         return apiSuccess(parseFileAcl(*object));
     }
 
-    FileAclApi::UserAclResult FileAclApi::parseUserAclResponse(const RawApiResponse& response) {
+    ApiResult<UserFileAcl> FileAclApi::parseUserAclResponse(const RawApiResponse& response) {
         if (!response.isSuccessStatus()) {
             return apiFailure(makeHttpError(response, "failed to load user ACL"));
         }
@@ -107,7 +113,7 @@ namespace client::infrastructure::api {
         return apiSuccess(parseUserFileAcl(*object));
     }
 
-    FileAclApi::GroupAclListResult FileAclApi::parseAclListResponse(const RawApiResponse& response) {
+    ApiResult<std::vector<FileAcl>> FileAclApi::parseAclListResponse(const RawApiResponse& response) {
         if (!response.isSuccessStatus()) {
             return apiFailure(makeHttpError(response, "failed to load ACL list"));
         }

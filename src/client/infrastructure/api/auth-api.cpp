@@ -10,18 +10,18 @@ namespace client::infrastructure::api {
         : QObject(parent),
           m_apiClient(apiClient) {}
 
-    void AuthApi::login(const QString& login, const QString& password, SessionCallback callback) {
+    void AuthApi::login(const QString& login, const QString& password, std::function<void(ApiResult<UserSession>)> callback) {
         authenticate("/api/auth/login", login, password, std::move(callback));
     }
 
-    void AuthApi::registerUser(const QString& login, const QString& password, SessionCallback callback) {
+    void AuthApi::registerUser(const QString& login, const QString& password, std::function<void(ApiResult<UserSession>)> callback) {
         authenticate("/api/auth/register", login, password, std::move(callback));
     }
 
     void AuthApi::authenticate(const QString& path,
                                const QString& login,
                                const QString& password,
-                               SessionCallback callback) {
+                               std::function<void(ApiResult<UserSession>)> callback) {
         QJsonObject body{
             {"login", login},
             {"password", password},

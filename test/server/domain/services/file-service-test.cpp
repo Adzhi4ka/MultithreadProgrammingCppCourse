@@ -136,4 +136,16 @@ namespace tests {
         EXPECT_EQ(removeResult.error(), ServiceError::NotFound);
     }
 
+    TEST_F(ServiceIntegrationTest, Create_GrantsReadWriteAclToOwnerSameNameGroup) {
+        auto addUserResult = m_userService->addUser("ivan", "123456");
+        ASSERT_TRUE(addUserResult.has_value());
+
+        auto createFileResult = m_fileService->create("file.txt", *addUserResult, 111);
+        ASSERT_TRUE(createFileResult.has_value());
+
+        auto aclResult = m_fileAclService->getUserAclLevel(*addUserResult, *createFileResult);
+        ASSERT_TRUE(aclResult.has_value());
+        EXPECT_EQ(*aclResult, domain::models::AclLevel::READ_WRITE);
+    }
+
 } // namespace tests

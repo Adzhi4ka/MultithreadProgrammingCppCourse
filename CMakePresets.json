@@ -31,7 +31,10 @@
                 "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
                 "CMAKE_LINKER_TYPE": "LLD",
                 "CMAKE_CXX_COMPILER_LAUNCHER": "ccache",
-                "CMAKE_C_COMPILER_LAUNCHER": "ccache"
+                "CMAKE_C_COMPILER_LAUNCHER": "ccache",
+                "CMAKE_RUNTIME_OUTPUT_DIRECTORY": "${sourceDir}/build/debug/bin",
+                "CMAKE_LIBRARY_OUTPUT_DIRECTORY": "${sourceDir}/build/debug/lib",
+                "CMAKE_ARCHIVE_OUTPUT_DIRECTORY": "${sourceDir}/build/debug/lib"
             }
         },
         {
@@ -50,9 +53,12 @@
                 "CMAKE_CXX_FLAGS_RELEASE": "-O3 -DNDEBUG -Wall -Wextra -march=native",
                 "BUILD_TESTING": "ON",
                 "CMAKE_LINKER_TYPE": "LLD",
-                "CMAKE_INTERPROCEDURAL_OPTIMIZATION":true,
+                "CMAKE_INTERPROCEDURAL_OPTIMIZATION": true,
                 "CMAKE_CXX_COMPILER_LAUNCHER": "ccache",
-                "CMAKE_C_COMPILER_LAUNCHER": "ccache"
+                "CMAKE_C_COMPILER_LAUNCHER": "ccache",
+                "CMAKE_RUNTIME_OUTPUT_DIRECTORY": "${sourceDir}/build/release/bin",
+                "CMAKE_LIBRARY_OUTPUT_DIRECTORY": "${sourceDir}/build/release/lib",
+                "CMAKE_ARCHIVE_OUTPUT_DIRECTORY": "${sourceDir}/build/release/lib"
             }
         }
     ],

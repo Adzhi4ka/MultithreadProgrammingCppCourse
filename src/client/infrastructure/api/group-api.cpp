@@ -1,9 +1,14 @@
 #include "group-api.h"
 
+#include "domain/models/group.h"
 #include "json-utils.h"
 
 #include <QJsonObject>
 #include <QUrlQuery>
+
+namespace {
+    using Group = client::domain::models::Group;
+}
 
 namespace client::infrastructure::api {
 
@@ -11,7 +16,7 @@ namespace client::infrastructure::api {
         : QObject(parent),
           m_apiClient(apiClient) {}
 
-    void GroupApi::create(const QString& name, GroupCallback callback) {
+    void GroupApi::create(const QString& name, std::function<void(ApiResult<Group>)> callback) {
         QJsonObject body{{"name", name}};
 
         m_apiClient.postJson("/api/groups", body, [callback = std::move(callback)](RawApiResponse response) mutable {
@@ -19,7 +24,7 @@ namespace client::infrastructure::api {
         });
     }
 
-    void GroupApi::getAll(GroupsCallback callback) {
+    void GroupApi::getAll(std::function<void(ApiResult<std::vector<Group>>)> callback) {
         m_apiClient.get("/api/groups", {}, [callback = std::move(callback)](RawApiResponse response) mutable {
             if (!response.isSuccessStatus()) {
                 callback(apiFailure(makeHttpError(response, "failed to load groups")));
@@ -37,7 +42,7 @@ namespace client::infrastructure::api {
         });
     }
 
-    void GroupApi::getById(qint64 groupId, GroupCallback callback) {
+    void GroupApi::getById(qint64 groupId, std::function<void(ApiResult<Group>)> callback) {
         QUrlQuery query;
         query.addQueryItem("groupId", QString::number(groupId));
 
@@ -46,7 +51,7 @@ namespace client::infrastructure::api {
         });
     }
 
-    void GroupApi::addUser(qint64 userId, qint64 groupId, VoidCallback callback) {
+    void GroupApi::addUser(qint64 userId, qint64 groupId, std::function<void(ApiResult<void>)> callback) {
         QJsonObject body{
             {"userId", userId},
             {"groupId", groupId},
@@ -62,7 +67,7 @@ namespace client::infrastructure::api {
         });
     }
 
-    void GroupApi::removeUser(qint64 userId, qint64 groupId, VoidCallback callback) {
+    void GroupApi::removeUser(qint64 userId, qint64 groupId, std::function<void(ApiResult<void>)> callback) {
         QJsonObject body{
             {"userId", userId},
             {"groupId", groupId},
@@ -78,7 +83,7 @@ namespace client::infrastructure::api {
         });
     }
 
-    void GroupApi::getUserGroups(qint64 userId, IdListCallback callback) {
+    void GroupApi::getUserGroups(qint64 userId, std::function<void(ApiResult<std::vector<qint64>>)> callback) {
         QUrlQuery query;
         query.addQueryItem("userId", QString::number(userId));
 
@@ -87,7 +92,7 @@ namespace client::infrastructure::api {
         });
     }
 
-    void GroupApi::getGroupUsers(qint64 groupId, IdListCallback callback) {
+    void GroupApi::getGroupUsers(qint64 groupId, std::function<void(ApiResult<std::vector<qint64>>)> callback) {
         QUrlQuery query;
         query.addQueryItem("groupId", QString::number(groupId));
 
@@ -96,7 +101,7 @@ namespace client::infrastructure::api {
         });
     }
 
-    void GroupApi::remove(qint64 groupId, VoidCallback callback) {
+    void GroupApi::remove(qint64 groupId, std::function<void(ApiResult<void>)> callback) {
         QUrlQuery query;
         query.addQueryItem("groupId", QString::number(groupId));
 
@@ -110,7 +115,7 @@ namespace client::infrastructure::api {
         });
     }
 
-    GroupApi::IdListResult GroupApi::parseIdListResponse(const RawApiResponse& response, const QString& fieldName) {
+    ApiResult<std::vector<qint64>> GroupApi::parseIdListResponse(const RawApiResponse& response, const QString& fieldName) {
         if (!response.isSuccessStatus()) {
             return apiFailure(makeHttpError(response, "failed to load ids"));
         }
@@ -141,7 +146,7 @@ namespace client::infrastructure::api {
         return apiSuccess(std::move(result));
     }
 
-    GroupApi::GroupResult GroupApi::parseGroupResponse(const RawApiResponse& response) {
+    ApiResult<Group> GroupApi::parseGroupResponse(const RawApiResponse& response) {
         if (!response.isSuccessStatus()) {
             return apiFailure(makeHttpError(response, "group operation failed"));
         }

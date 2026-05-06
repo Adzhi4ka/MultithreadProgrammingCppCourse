@@ -1,9 +1,14 @@
 #include "file-api.h"
 
 #include "json-utils.h"
+#include "qtypes.h"
 
 #include <QJsonObject>
 #include <QUrlQuery>
+
+namespace {
+    using RemoteFile = client::domain::models::RemoteFile;
+}
 
 namespace client::infrastructure::api {
 
@@ -11,7 +16,7 @@ namespace client::infrastructure::api {
         : QObject(parent),
           m_apiClient(apiClient) {}
 
-    void FileApi::getAll(FilesCallback callback) {
+    void FileApi::getAll(std::function<void(ApiResult<std::vector<RemoteFile>>)> callback) {
         m_apiClient.get("/api/files", {}, [callback = std::move(callback)](RawApiResponse response) mutable {
             if (!response.isSuccessStatus()) {
                 callback(apiFailure(makeHttpError(response, "failed to load files")));
@@ -29,7 +34,7 @@ namespace client::infrastructure::api {
         });
     }
 
-    void FileApi::getById(qint64 fileId, FileCallback callback) {
+    void FileApi::getById(qint64 fileId, std::function<void(ApiResult<RemoteFile>)> callback) {
         QUrlQuery query;
         query.addQueryItem("fileId", QString::number(fileId));
 
@@ -38,7 +43,7 @@ namespace client::infrastructure::api {
         });
     }
 
-    void FileApi::getByLogicalName(const QString& logicalName, FileCallback callback) {
+    void FileApi::getByLogicalName(const QString& logicalName, std::function<void(ApiResult<RemoteFile>)> callback) {
         QUrlQuery query;
         query.addQueryItem("logicalName", logicalName);
 
@@ -47,7 +52,7 @@ namespace client::infrastructure::api {
         });
     }
 
-    void FileApi::create(const QString& logicalName, quint32 maxVersionCount, FileCallback callback) {
+    void FileApi::create(const QString& logicalName, quint32 maxVersionCount, std::function<void(ApiResult<RemoteFile>)> callback) {
         QJsonObject body{
             {"logicalName", logicalName},
             {"maxVersionCount", (qint64)maxVersionCount},
@@ -58,7 +63,7 @@ namespace client::infrastructure::api {
         });
     }
 
-    void FileApi::rename(qint64 fileId, const QString& newLogicalName, FileCallback callback) {
+    void FileApi::rename(qint64 fileId, const QString& newLogicalName, std::function<void(ApiResult<RemoteFile>)> callback) {
         QJsonObject body{
             {"fileId", fileId},
             {"newLogicalName", newLogicalName},
@@ -69,7 +74,7 @@ namespace client::infrastructure::api {
         });
     }
 
-    void FileApi::remove(qint64 fileId, VoidCallback callback) {
+    void FileApi::remove(qint64 fileId, std::function<void(ApiResult<void>)> callback) {
         QUrlQuery query;
         query.addQueryItem("fileId", QString::number(fileId));
 
@@ -83,7 +88,7 @@ namespace client::infrastructure::api {
         });
     }
 
-    FileApi::FileResult FileApi::parseSingleFileResponse(const RawApiResponse& response) {
+    ApiResult<RemoteFile> FileApi::parseSingleFileResponse(const RawApiResponse& response) {
         if (!response.isSuccessStatus()) {
             return apiFailure(makeHttpError(response, "file operation failed"));
         }

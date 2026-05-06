@@ -2,7 +2,6 @@
 
 #include "api-client.h"
 #include "api-result.h"
-
 #include "domain/models/group.h"
 
 #include <QObject>
@@ -13,35 +12,32 @@
 
 namespace client::infrastructure::api {
 
-    class GroupApi final : public QObject {
-        Q_OBJECT
+    class GroupApi : public QObject {
 
-    public:
-        using GroupResult = ApiResult<domain::models::Group>;
-        using GroupsResult = ApiResult<std::vector<domain::models::Group>>;
-        using GroupCallback = std::function<void(GroupResult)>;
-        using GroupsCallback = std::function<void(GroupsResult)>;
-        using VoidCallback = std::function<void(ApiResult<void>)>;
-        using IdListResult = ApiResult<std::vector<qint64>>;
-        using IdListCallback = std::function<void(IdListResult)>;
+            using Group = domain::models::Group;
 
-        explicit GroupApi(ApiClient& apiClient, QObject* parent = nullptr);
+            Q_OBJECT
+            ApiClient& m_apiClient;
 
-        void create(const QString& name, GroupCallback callback);
-        void getAll(GroupsCallback callback);
-        void getById(qint64 groupId, GroupCallback callback);
-        void addUser(qint64 userId, qint64 groupId, VoidCallback callback);
-        void removeUser(qint64 userId, qint64 groupId, VoidCallback callback);
-        void getUserGroups(qint64 userId, IdListCallback callback);
-        void getGroupUsers(qint64 groupId, IdListCallback callback);
-        void remove(qint64 groupId, VoidCallback callback);
+        public:
 
-    private:
-        static GroupResult parseGroupResponse(const RawApiResponse& response);
-        static IdListResult parseIdListResponse(const RawApiResponse& response, const QString& fieldName);
+            explicit GroupApi(ApiClient& apiClient, QObject* parent = nullptr);
 
-    private:
-        ApiClient& m_apiClient;
+            void create(const QString& name, std::function<void(ApiResult<Group>)> callback);
+            void getAll(std::function<void(ApiResult<std::vector<Group>>)> callback);
+            void getById(qint64 groupId, std::function<void(ApiResult<Group>)> callback);
+            void addUser(qint64 userId, qint64 groupId, std::function<void(ApiResult<void>)> callback);
+            void removeUser(qint64 userId, qint64 groupId, std::function<void(ApiResult<void>)> callback);
+            void getUserGroups(qint64 userId, std::function<void(ApiResult<std::vector<qint64>>)> callback);
+            void getGroupUsers(qint64 groupId, std::function<void(ApiResult<std::vector<qint64>>)> callback);
+            void remove(qint64 groupId, std::function<void(ApiResult<void>)> callback);
+
+        private:
+
+            static ApiResult<Group> parseGroupResponse(const RawApiResponse& response);
+            static ApiResult<std::vector<qint64>> parseIdListResponse(const RawApiResponse& response,
+                                                                      const QString& fieldName);
+
     };
 
 }

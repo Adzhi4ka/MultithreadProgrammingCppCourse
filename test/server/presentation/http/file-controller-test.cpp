@@ -104,7 +104,7 @@ namespace tests {
         ASSERT_EQ(byFileResponse.result(), http::status::ok) << byFileResponse.body();
 
         auto byFileItems = parseJson(byFileResponse).as_object().at("items").as_array();
-        ASSERT_EQ(byFileItems.size(), 1u);
+        ASSERT_EQ(byFileItems.size(), 2u);
 
         auto byGroupResponse = request(http::verb::get,
                                        "/api/file-acl/by-group?groupId=" + std::to_string(readersGroupId),

@@ -1,46 +1,47 @@
 #pragma once
 
+#include "application/client-runtime.h"
 #include "domain/models/user-session.h"
-#include "infrastructure/api/api-client.h"
-#include "infrastructure/api/auth-api.h"
 
 #include <QDialog>
 
+class QLabel;
 class QLineEdit;
 class QPushButton;
-class QLabel;
 
 namespace client::presentation {
 
-    class LoginDialog final : public QDialog {
-        Q_OBJECT
+    class LoginDialog : public QDialog {
 
-    public:
-        explicit LoginDialog(infrastructure::api::ApiClient& apiClient,
-                             infrastructure::api::AuthApi& authApi,
-                             QWidget* parent = nullptr);
+            Q_OBJECT
 
-        domain::models::UserSession session() const;
+            application::ClientRuntime& m_runtime;
+            domain::models::UserSession m_session;
 
-    private:
-        void buildUi();
-        void startLogin();
-        void startRegister();
-        void authenticate(bool registration);
-        void setBusy(bool busy);
-        void showError(const infrastructure::api::ApiError& error);
+            QLineEdit* m_baseUrlEdit = nullptr;
+            QLineEdit* m_loginEdit = nullptr;
+            QLineEdit* m_passwordEdit = nullptr;
+            QPushButton* m_loginButton = nullptr;
+            QPushButton* m_registerButton = nullptr;
+            QLabel* m_statusLabel = nullptr;
 
-    private:
-        infrastructure::api::ApiClient& m_apiClient;
-        infrastructure::api::AuthApi& m_authApi;
-        domain::models::UserSession m_session;
+        public:
+            explicit LoginDialog(application::ClientRuntime& runtime,
+                                 QWidget* parent = nullptr);
 
-        QLineEdit* m_baseUrlEdit = nullptr;
-        QLineEdit* m_loginEdit = nullptr;
-        QLineEdit* m_passwordEdit = nullptr;
-        QPushButton* m_loginButton = nullptr;
-        QPushButton* m_registerButton = nullptr;
-        QLabel* m_statusLabel = nullptr;
+            domain::models::UserSession session() const;
+
+        private slots:
+            void startLogin();
+            void startRegister();
+            void handleAuthenticationFinished(ApiResult<domain::models::UserSession> result);
+
+        private:
+            void buildUi();
+            void authenticate(bool registration);
+            void setBusy(bool busy);
+            void showError(const ApiError& error);
+
     };
 
 }

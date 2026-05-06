@@ -2,7 +2,6 @@
 
 #include "api-client.h"
 #include "api-result.h"
-
 #include "domain/models/file-version.h"
 
 #include <QObject>
@@ -13,27 +12,28 @@
 
 namespace client::infrastructure::api {
 
-    class FileVersionApi final : public QObject {
-        Q_OBJECT
+    class FileVersionApi : public QObject {
 
-    public:
-        using VersionResult = ApiResult<domain::models::FileVersion>;
-        using VersionsResult = ApiResult<std::vector<domain::models::FileVersion>>;
-        using VersionCallback = std::function<void(VersionResult)>;
-        using VersionsCallback = std::function<void(VersionsResult)>;
+            using FileVersion = domain::models::FileVersion;
 
-        explicit FileVersionApi(ApiClient& apiClient, QObject* parent = nullptr);
+            Q_OBJECT
+            ApiClient& m_apiClient;
 
-        void create(qint64 fileId, const QString& logicalNameSnapshot, VersionCallback callback);
-        void getCurrent(qint64 fileId, VersionCallback callback);
-        void getAll(qint64 fileId, VersionsCallback callback);
+        public:
 
-    private:
-        static VersionResult parseVersionResponse(const RawApiResponse& response);
-        static VersionsResult parseVersionsResponse(const RawApiResponse& response);
+            explicit FileVersionApi(ApiClient& apiClient, QObject* parent = nullptr);
 
-    private:
-        ApiClient& m_apiClient;
+            void create(qint64 fileId,
+                        const QString& logicalNameSnapshot,
+                        std::function<void(ApiResult<FileVersion>)> callback);
+            void getCurrent(qint64 fileId, std::function<void(ApiResult<FileVersion>)> callback);
+            void getAll(qint64 fileId,
+                        std::function<void(ApiResult<std::vector<FileVersion>>)> callback);
+
+        private:
+
+            static ApiResult<FileVersion> parseVersionResponse(const RawApiResponse& response);
+            static ApiResult<std::vector<FileVersion>> parseVersionsResponse(const RawApiResponse& response);
     };
 
 }

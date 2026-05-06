@@ -2,7 +2,6 @@
 
 #include "api-client.h"
 #include "api-result.h"
-
 #include "domain/models/remote-file.h"
 
 #include <QObject>
@@ -13,30 +12,33 @@
 
 namespace client::infrastructure::api {
 
-    class FileApi final : public QObject {
-        Q_OBJECT
+    class FileApi : public QObject {
 
-    public:
-        using FileResult = ApiResult<domain::models::RemoteFile>;
-        using FilesResult = ApiResult<std::vector<domain::models::RemoteFile>>;
-        using FileCallback = std::function<void(FileResult)>;
-        using FilesCallback = std::function<void(FilesResult)>;
-        using VoidCallback = std::function<void(ApiResult<void>)>;
+            using RemoteFile = domain::models::RemoteFile;
 
-        explicit FileApi(ApiClient& apiClient, QObject* parent = nullptr);
+            Q_OBJECT
+            ApiClient& m_apiClient;
+    
+        public:
 
-        void getAll(FilesCallback callback);
-        void getById(qint64 fileId, FileCallback callback);
-        void getByLogicalName(const QString& logicalName, FileCallback callback);
-        void create(const QString& logicalName, quint32 maxVersionCount, FileCallback callback);
-        void rename(qint64 fileId, const QString& newLogicalName, FileCallback callback);
-        void remove(qint64 fileId, VoidCallback callback);
+            explicit FileApi(ApiClient& apiClient, QObject* parent = nullptr);
+    
+            void getAll(std::function<void(ApiResult<std::vector<RemoteFile>>)> callback);
+            void getById(qint64 fileId, std::function<void(ApiResult<RemoteFile>)> callback);
+            void getByLogicalName(const QString& logicalName,
+                                  std::function<void(ApiResult<RemoteFile>)> callback);
+            void create(const QString& logicalName,
+                        quint32 maxVersionCount,
+                        std::function<void(ApiResult<RemoteFile>)> callback);
+            void rename(qint64 fileId,
+                        const QString& newLogicalName,
+                        std::function<void(ApiResult<RemoteFile>)> callback);
+            void remove(qint64 fileId, std::function<void(ApiResult<void>)> callback);
+    
+        private:
 
-    private:
-        static FileResult parseSingleFileResponse(const RawApiResponse& response);
-
-    private:
-        ApiClient& m_apiClient;
+            static ApiResult<RemoteFile> parseSingleFileResponse(const RawApiResponse& response);
+    
     };
 
 }

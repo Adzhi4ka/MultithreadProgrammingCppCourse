@@ -8,17 +8,8 @@ add_library(client_infrastructure_api STATIC
     file-acl-api.cpp
     group-api.cpp
     file-version-api.cpp
-
-    api-result.h
-    api-client.h
-    json-utils.h
-    auth-api.h
-    file-api.h
-    file-content-api.h
-    file-lock-api.h
-    file-acl-api.h
-    group-api.h
-    file-version-api.h
+    notification-stream-client.cpp
+    remote-api-gateway.cpp
 )
 
 target_include_directories(client_infrastructure_api

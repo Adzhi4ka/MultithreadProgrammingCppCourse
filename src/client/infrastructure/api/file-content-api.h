@@ -2,7 +2,6 @@
 
 #include "api-client.h"
 #include "api-result.h"
-
 #include "domain/models/file-version.h"
 
 #include <QByteArray>
@@ -12,26 +11,24 @@
 
 namespace client::infrastructure::api {
 
-    class FileContentApi final : public QObject {
-        Q_OBJECT
+    class FileContentApi : public QObject {
 
-    public:
-        using BytesResult = ApiResult<QByteArray>;
-        using BytesCallback = std::function<void(BytesResult)>;
-        using VersionResult = ApiResult<domain::models::FileVersion>;
-        using VersionCallback = std::function<void(VersionResult)>;
+            Q_OBJECT
+            ApiClient& m_apiClient;
 
-        explicit FileContentApi(ApiClient& apiClient, QObject* parent = nullptr);
+        public:
+            explicit FileContentApi(ApiClient& apiClient, QObject* parent = nullptr);
 
-        void downloadCurrent(qint64 fileId, BytesCallback callback);
-        void uploadCurrent(qint64 fileId, const QByteArray& content, VersionCallback callback);
-        void downloadVersion(qint64 versionId, BytesCallback callback);
+            void downloadCurrent(qint64 fileId, std::function<void(ApiResult<QByteArray>)> callback);
+            void uploadCurrent(qint64 fileId,
+                               const QByteArray& content,
+                               std::function<void(ApiResult<domain::models::FileVersion>)> callback);
+            void downloadVersion(qint64 versionId, std::function<void(ApiResult<QByteArray>)> callback);
 
-    private:
-        static VersionResult parseVersionResponse(const RawApiResponse& response);
+        private:
 
-    private:
-        ApiClient& m_apiClient;
+            static ApiResult<domain::models::FileVersion> parseVersionResponse(const RawApiResponse& response);
+
     };
 
 }

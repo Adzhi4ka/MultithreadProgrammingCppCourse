@@ -10,7 +10,7 @@ namespace client::infrastructure::api {
         : QObject(parent),
           m_apiClient(apiClient) {}
 
-    void FileContentApi::downloadCurrent(qint64 fileId, BytesCallback callback) {
+    void FileContentApi::downloadCurrent(qint64 fileId, std::function<void(ApiResult<QByteArray>)> callback) {
         QUrlQuery query;
         query.addQueryItem("fileId", QString::number(fileId));
 
@@ -24,7 +24,7 @@ namespace client::infrastructure::api {
         });
     }
 
-    void FileContentApi::uploadCurrent(qint64 fileId, const QByteArray& content, VersionCallback callback) {
+    void FileContentApi::uploadCurrent(qint64 fileId, const QByteArray& content, std::function<void(ApiResult<domain::models::FileVersion>)> callback) {
         QUrlQuery query;
         query.addQueryItem("fileId", QString::number(fileId));
 
@@ -37,7 +37,7 @@ namespace client::infrastructure::api {
                            });
     }
 
-    void FileContentApi::downloadVersion(qint64 versionId, BytesCallback callback) {
+    void FileContentApi::downloadVersion(qint64 versionId, std::function<void(ApiResult<QByteArray>)> callback) {
         QUrlQuery query;
         query.addQueryItem("versionId", QString::number(versionId));
 
@@ -51,7 +51,7 @@ namespace client::infrastructure::api {
         });
     }
 
-    FileContentApi::VersionResult FileContentApi::parseVersionResponse(const RawApiResponse& response) {
+    ApiResult<domain::models::FileVersion> FileContentApi::parseVersionResponse(const RawApiResponse& response) {
         if (!response.isSuccessStatus()) {
             return apiFailure(makeHttpError(response, "failed to upload file content"));
         }

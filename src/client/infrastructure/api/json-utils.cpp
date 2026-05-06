@@ -1,5 +1,6 @@
 #include "json-utils.h"
 #include "api-client.h"
+#include "qtypes.h"
 
 #include <QJsonDocument>
 #include <QJsonParseError>
@@ -26,7 +27,7 @@ namespace client::infrastructure::api {
                 return std::nullopt;
             }
 
-            return (quint64)value.toDouble();
+            return (qint64)value.toDouble();
         }
 
     }
@@ -76,7 +77,7 @@ namespace client::infrastructure::api {
             return std::nullopt;
         }
 
-        return (quint32)*value;
+        return *value;
     }
 
     std::optional<QString> getStringField(const QJsonObject& object, QStringView fieldName) {

@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <filesystem>
 #include <stdexcept>
 #include <system_error>
@@ -82,7 +83,10 @@ namespace tests {
         m_fileAclRepo = std::make_unique<infrastructure::repositories::FileAclRepository>();
         m_fileLockRepo = std::make_unique<infrastructure::repositories::FileLockRepository>();
 
-        m_userService = std::make_unique<domain::services::UserService>(*m_database, *m_userRepo, *m_groupRepo, *m_userGroupRepo);
+        m_userService = std::make_unique<domain::services::UserService>(*m_database,
+                                                                         *m_userRepo,
+                                                                         *m_groupRepo,
+                                                                         *m_userGroupRepo);
         m_groupService = std::make_unique<domain::services::GroupService>(*m_database,
                                                                           *m_groupRepo,
                                                                           *m_userGroupRepo);

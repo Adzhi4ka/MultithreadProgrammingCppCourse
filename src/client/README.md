@@ -1,28 +1,47 @@
-# Qt MVP client
+# Qt client MVP
 
-MVP-клиент собирается отдельной целью:
+Клиент сделан под текущий серверный API и повторяет серверное разбиение по слоям.
 
-```bash
-cmake --preset debug
-cmake --build --preset debug --target file_storage_qt_client
-./build/debug/src/client/file_storage_qt_client
+## Потоки
+
+- UI thread: `presentation/*`, окна и виджеты.
+- Network thread: `application::NetworkWorker`, `infrastructure::api::RemoteApiGateway`, `QNetworkAccessManager`, REST API и SSE stream.
+- Internal thread: `domain::services::*`, in-memory repositories и сборка клиентского состояния.
+
+Единого внутреннего worker-класса нет: `ClientRuntime` постит команды напрямую в нужный доменный сервис через общий internal `QObject`-контекст.
+
+## Слои
+
+```text
+src/client/domain
+    models/
+    services/
+
+src/client/infrastructure
+    api/
+    repositories/
+
+src/client/application
+    client-runtime.*
+    network-worker.*
+
+src/client/presentation
+    main-window.*
+    editor-window.*
+    widgets/
+    dialogs/
 ```
 
-Что есть:
+## Notifications stream
 
-- login/register через `/api/auth/*`;
-- псевдофайловое дерево из `fullLogicalName`;
-- метаинформация файла: id, версия, createdBy, createdAt, ACL, lock;
-- открыть текущую версию readonly;
-- взять lock и открыть файл на редактирование;
-- save через `PUT /api/files/content`;
-- release/renew lock;
-- create/rename/delete file;
-- просмотр старых версий через `/api/file-versions` и readonly-открытие версии.
+Клиент подключается к:
 
-Что сознательно не делалось для MVP:
+```http
+GET /api/notifications/stream
+```
 
-- отдельный `UserController` на сервере;
-- нормальная таблица пользователей;
-- исправление серверной бизнес-логики lock/ACL;
-- persistent local storage — состояние хранится in-memory.
+SSE-события разбираются в `NotificationStreamClient`. Основное окно обновляет список файлов при:
+
+- `file_created`;
+- `file_locked`;
+- `group_assigned`.

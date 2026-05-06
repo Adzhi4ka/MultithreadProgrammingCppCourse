@@ -1,98 +1,89 @@
 #pragma once
 
+#include "application/client-runtime.h"
 #include "domain/models/file-lock.h"
+#include "domain/models/file-version.h"
+#include "domain/models/notification-event.h"
 #include "domain/models/remote-file.h"
 #include "domain/models/user-session.h"
-#include "infrastructure/api/api-client.h"
-#include "infrastructure/api/file-acl-api.h"
-#include "infrastructure/api/file-api.h"
-#include "infrastructure/api/file-content-api.h"
-#include "infrastructure/api/file-lock-api.h"
-#include "infrastructure/api/file-version-api.h"
 
-#include <QHash>
+#include <QByteArray>
+#include <QList>
 #include <QMainWindow>
+#include <QPointer>
+
 #include <optional>
 #include <vector>
 
-class QAction;
 class QLabel;
-class QPushButton;
-class QTextEdit;
-class QTimer;
-class QTreeWidget;
-class QTreeWidgetItem;
+class QPoint;
+class QSplitter;
 
 namespace client::presentation {
 
-    class MainWindow final : public QMainWindow {
-        Q_OBJECT
+    class EditorWindow;
+    class FileInfoWidget;
+    class FileTreeWidget;
 
-    public:
-        explicit MainWindow(infrastructure::api::ApiClient& apiClient,
-                            domain::models::UserSession session,
-                            QWidget* parent = nullptr);
+    class MainWindow : public QMainWindow {
 
-    protected:
-        void closeEvent(QCloseEvent* event) override;
+            Q_OBJECT
 
-    private:
-        void buildUi();
-        void buildToolbar();
-        void refreshFiles();
-        void renderFiles(const std::vector<domain::models::RemoteFile>& files);
-        void rememberLocalFile(domain::models::RemoteFile file);
-        bool isLocalOnlyFile(qint64 fileId) const;
-        void insertFileItem(const domain::models::RemoteFile& file);
-        QTreeWidgetItem* ensureFolderItem(const QString& pathPart, QTreeWidgetItem* parent, const QString& fullPath);
-        void updateSelectedFileInfo();
-        void hydrateFileMeta(qint64 fileId);
+            application::ClientRuntime& m_runtime;
+            domain::models::UserSession m_session;
 
-        void createFile();
-        void renameFile();
-        void deleteFile();
-        void openSelectedReadOnly();
-        void openSelectedForEdit();
-        void saveOpenedFile();
-        void releaseOpenedLock();
-        void showVersions();
-        void openVersion(qint64 versionId);
-        void renewLock();
-        void logout();
+            FileTreeWidget* m_fileTree = nullptr;
+            FileInfoWidget* m_infoPanel = nullptr;
+            QLabel* m_statusLabel = nullptr;
 
-        std::optional<qint64> selectedFileId() const;
-        QString selectedLogicalName() const;
-        static QString aclToText(domain::models::AclLevel aclLevel);
-        static QString formatUnixSeconds(qint64 seconds);
-        void setEditorState(bool enabled, bool readOnly, QString title = {});
-        void showApiError(const QString& title, const infrastructure::api::ApiError& error);
+            QList<QPointer<EditorWindow>> m_editorWindows;
+            std::optional<domain::models::RemoteFile> m_pendingReadOnlyFile;
+            std::optional<domain::models::RemoteFile> m_pendingEditFile;
+            std::optional<domain::models::FileLock> m_pendingEditLock;
+            std::optional<qint64> m_pendingVersionsFileId;
+            std::optional<qint64> m_pendingVersionId;
 
-    private:
-        infrastructure::api::ApiClient& m_apiClient;
-        domain::models::UserSession m_session;
+        public:
 
-        infrastructure::api::FileApi m_fileApi;
-        infrastructure::api::FileContentApi m_contentApi;
-        infrastructure::api::FileLockApi m_lockApi;
-        infrastructure::api::FileAclApi m_aclApi;
-        infrastructure::api::FileVersionApi m_versionApi;
+            explicit MainWindow(application::ClientRuntime& runtime,
+                                domain::models::UserSession session,
+                                QWidget* parent = nullptr);
 
-        QTreeWidget* m_fileTree = nullptr;
-        QTextEdit* m_editor = nullptr;
-        QLabel* m_infoLabel = nullptr;
-        QLabel* m_statusLabel = nullptr;
-        QPushButton* m_saveButton = nullptr;
-        QPushButton* m_releaseButton = nullptr;
-        QTimer* m_lockRenewTimer = nullptr;
+        private slots:
 
-        QHash<qint64, domain::models::RemoteFile> m_filesById;
-        QHash<qint64, domain::models::RemoteFile> m_localFilesById;
-        QHash<qint64, QTreeWidgetItem*> m_itemsByFileId;
-        QHash<QString, QTreeWidgetItem*> m_folderItemsByPath;
+            void refreshFiles();
+            void createFile();
+            void renameFile();
+            void deleteFile();
+            void openSelectedReadOnly();
+            void openSelectedForEdit();
+            void showVersions();
+            void openVersion(qint64 versionId);
+            void showGroups();
+            void logout();
 
-        std::optional<qint64> m_openedFileId;
-        std::optional<qint64> m_openedLockToken;
-        QString m_openedLogicalName;
+            void handleFilesLoaded(qint64 currentUserId, ApiResult<std::vector<domain::models::RemoteFile>> result);
+            void handleFileCreated(ApiResult<domain::models::RemoteFile> result);
+            void handleFileRenamed(qint64 fileId, ApiResult<domain::models::RemoteFile> result);
+            void handleFileDeleted(qint64 fileId, ApiResult<void> result);
+            void handleCurrentDownloaded(qint64 fileId, ApiResult<QByteArray> result);
+            void handleLockAcquired(qint64 fileId, ApiResult<domain::models::FileLock> result);
+            void handleVersionsLoaded(qint64 fileId, ApiResult<std::vector<domain::models::FileVersion>> result);
+            void handleVersionDownloaded(qint64 versionId, ApiResult<QByteArray> result);
+            void handleNotification(ApiResult<domain::models::NotificationEvent> result);
+
+        private:
+
+            void closeEvent(QCloseEvent* event) override;
+
+            void buildUi();
+            void connectRuntimeSignals();
+            void showFileContextMenu(const QPoint& position);
+
+            std::optional<domain::models::RemoteFile> selectedFile() const;
+            void registerEditor(EditorWindow* window);
+            void showApiError(const QString& title, const ApiError& error);
+
     };
 
 }

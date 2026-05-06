@@ -6,7 +6,7 @@
 
 #include <QString>
 
-namespace client::infrastructure::api {
+namespace client {
 
     struct ApiError {
         int httpStatus = 0;

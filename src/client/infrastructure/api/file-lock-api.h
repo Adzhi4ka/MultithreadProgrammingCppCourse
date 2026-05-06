@@ -2,7 +2,6 @@
 
 #include "api-client.h"
 #include "api-result.h"
-
 #include "domain/models/file-lock.h"
 
 #include <QObject>
@@ -11,26 +10,33 @@
 
 namespace client::infrastructure::api {
 
-    class FileLockApi final : public QObject {
-        Q_OBJECT
+    class FileLockApi : public QObject {
 
-    public:
-        using LockResult = ApiResult<domain::models::FileLock>;
-        using LockCallback = std::function<void(LockResult)>;
-        using VoidCallback = std::function<void(ApiResult<void>)>;
+            using FileLock = domain::models::FileLock;
 
-        explicit FileLockApi(ApiClient& apiClient, QObject* parent = nullptr);
+            Q_OBJECT
+            ApiClient& m_apiClient;
 
-        void acquire(qint64 fileId, qint64 lockDurationSec, LockCallback callback);
-        void renew(qint64 fileId, qint64 lockToken, qint64 lockDurationSec, VoidCallback callback);
-        void release(qint64 fileId, qint64 lockToken, VoidCallback callback);
-        void getActive(qint64 fileId, LockCallback callback);
+        public:
 
-    private:
-        static LockResult parseLockResponse(const RawApiResponse& response);
+            explicit FileLockApi(ApiClient& apiClient, QObject* parent = nullptr);
 
-    private:
-        ApiClient& m_apiClient;
+            void acquire(qint64 fileId,
+                        qint64 lockDurationSec,
+                        std::function<void(ApiResult<FileLock>)> callback);
+            void renew(qint64 fileId,
+                       qint64 lockToken,
+                       qint64 lockDurationSec,
+                       std::function<void(ApiResult<void>)> callback);
+            void release(qint64 fileId,
+                         qint64 lockToken,
+                         std::function<void(ApiResult<void>)> callback);
+            void getActive(qint64 fileId, std::function<void(ApiResult<FileLock>)> callback);
+
+        private:
+
+            static ApiResult<FileLock> parseLockResponse(const RawApiResponse& response);
+
     };
 
 }

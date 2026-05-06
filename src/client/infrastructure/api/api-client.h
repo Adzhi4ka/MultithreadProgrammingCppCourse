@@ -26,40 +26,51 @@ namespace client::infrastructure::api {
         }
     };
 
-    using RawApiCallback = std::function<void(RawApiResponse)>;
+    class ApiClient : public QObject {
 
-    class ApiClient final : public QObject {
-        Q_OBJECT
+            Q_OBJECT
 
-    public:
-        explicit ApiClient(QUrl baseUrl, QObject* parent = nullptr);
+            QUrl m_baseUrl;
+            QString m_bearerToken;
+            QNetworkAccessManager m_network;
 
-        void setBaseUrl(QUrl baseUrl);
-        QUrl baseUrl() const;
+        public:
 
-        void setBearerToken(QString token);
-        void clearBearerToken();
-        QString bearerToken() const;
+            explicit ApiClient(QUrl baseUrl, QObject* parent = nullptr);
 
-        void get(const QString& path, const QUrlQuery& query, RawApiCallback callback);
-        void postJson(const QString& path, const QJsonObject& body, RawApiCallback callback);
-        void putJson(const QString& path, const QJsonObject& body, RawApiCallback callback);
-        void putRaw(const QString& path,
-                    const QUrlQuery& query,
-                    const QByteArray& body,
-                    const QByteArray& contentType,
-                    RawApiCallback callback);
-        void deleteRequest(const QString& path, const QUrlQuery& query, RawApiCallback callback);
-        void deleteJson(const QString& path, const QJsonObject& body, RawApiCallback callback);
+            void setBaseUrl(QUrl baseUrl);
+            QUrl baseUrl() const;
 
-    private:
-        QNetworkRequest makeRequest(const QString& path, const QUrlQuery& query = {}) const;
-        void send(QNetworkReply* reply, RawApiCallback callback) const;
+            void setBearerToken(QString token);
+            void clearBearerToken();
+            QString bearerToken() const;
 
-    private:
-        QUrl m_baseUrl;
-        QString m_bearerToken;
-        QNetworkAccessManager m_network;
+            void get(const QString& path,
+                     const QUrlQuery& query,
+                     std::function<void(RawApiResponse)> callback);
+            void postJson(const QString& path,
+                          const QJsonObject& body,
+                          std::function<void(RawApiResponse)> callback);
+            void putJson(const QString& path,
+                         const QJsonObject& body,
+                         std::function<void(RawApiResponse)> callback);
+            void putRaw(const QString& path,
+                        const QUrlQuery& query,
+                        const QByteArray& body,
+                        const QByteArray& contentType,
+                        std::function<void(RawApiResponse)> callback);
+            void deleteRequest(const QString& path,
+                               const QUrlQuery& query,
+                               std::function<void(RawApiResponse)> callback);
+            void deleteJson(const QString& path,
+                            const QJsonObject& body,
+                            std::function<void(RawApiResponse)> callback);
+
+        private:
+
+            QNetworkRequest makeRequest(const QString& path, const QUrlQuery& query = {}) const;
+            void send(QNetworkReply* reply, std::function<void(RawApiResponse)> callback) const;
+
     };
 
 }

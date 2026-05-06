@@ -1,5 +1,7 @@
 #include "service-test-integration.h"
 
+#include <algorithm>
+
 namespace tests {
 
     TEST_F(ServiceIntegrationTest, CreateGroup_ReturnsGroupId_WhenNameIsUnique) {
@@ -30,8 +32,9 @@ namespace tests {
 
         auto userGroupsResult = m_groupService->getUserGroups(*addUserResult);
         ASSERT_TRUE(userGroupsResult.has_value());
-        ASSERT_EQ(userGroupsResult->size(), 1u);
-        EXPECT_EQ((*userGroupsResult)[0], *createGroupResult);
+        ASSERT_EQ(userGroupsResult->size(), 2u);
+        EXPECT_TRUE((*userGroupsResult)[0] == *createGroupResult ||
+                    (*userGroupsResult)[1] == *createGroupResult);
     }
 
     TEST_F(ServiceIntegrationTest, AddUserToGroup_ReturnsConflict_WhenMembershipAlreadyExists) {
@@ -68,7 +71,7 @@ namespace tests {
 
         auto userGroupsResult = m_groupService->getUserGroups(*addUserResult);
         ASSERT_TRUE(userGroupsResult.has_value());
-        EXPECT_TRUE(userGroupsResult->empty());
+        ASSERT_EQ(userGroupsResult->size(), 1u);
     }
 
     TEST_F(ServiceIntegrationTest, RemoveUserFromGroup_ReturnsNotFound_WhenMembershipDoesNotExist) {
@@ -104,12 +107,10 @@ namespace tests {
 
         auto userGroupsResult = m_groupService->getUserGroups(*addUserResult);
         ASSERT_TRUE(userGroupsResult.has_value());
-        ASSERT_EQ(userGroupsResult->size(), 2u);
+        ASSERT_EQ(userGroupsResult->size(), 3u);
 
-        EXPECT_TRUE(
-            ((*userGroupsResult)[0] == *firstGroupResult && (*userGroupsResult)[1] == *secondGroupResult) ||
-            ((*userGroupsResult)[0] == *secondGroupResult && (*userGroupsResult)[1] == *firstGroupResult)
-        );
+        EXPECT_TRUE(std::ranges::find(*userGroupsResult, *firstGroupResult) != userGroupsResult->end());
+        EXPECT_TRUE(std::ranges::find(*userGroupsResult, *secondGroupResult) != userGroupsResult->end());
     }
 
 } // namespace tests

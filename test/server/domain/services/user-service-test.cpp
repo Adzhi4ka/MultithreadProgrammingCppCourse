@@ -57,4 +57,19 @@ namespace tests {
         EXPECT_EQ(loginResult.error(), ServiceError::Forbidden);
     }
 
+    TEST_F(ServiceIntegrationTest, AddUser_CreatesSameNameGroupAndMembership) {
+        auto addResult = m_userService->addUser("ivan", "123456");
+        ASSERT_TRUE(addResult.has_value());
+
+        auto groupsResult = m_groupService->getAllGroups();
+        ASSERT_TRUE(groupsResult.has_value());
+        ASSERT_EQ(groupsResult->size(), 1u);
+        EXPECT_EQ((*groupsResult)[0].name, "ivan");
+
+        auto userGroupsResult = m_groupService->getUserGroups(*addResult);
+        ASSERT_TRUE(userGroupsResult.has_value());
+        ASSERT_EQ(userGroupsResult->size(), 1u);
+        EXPECT_EQ((*userGroupsResult)[0], (*groupsResult)[0].id);
+    }
+
 } // namespace tests

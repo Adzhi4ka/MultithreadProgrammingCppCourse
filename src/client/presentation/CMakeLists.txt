@@ -1,9 +1,19 @@
 add_library(client_presentation STATIC
     login-dialog.cpp
     main-window.cpp
+    editor-window.cpp
+    ui-format.cpp
+    styles/app-style.cpp
+    widgets/file-tree-widget.cpp
+    widgets/file-info-widget.cpp
+    dialogs/group-management-dialog.cpp
+)
 
-    login-dialog.h
-    main-window.h
+qt_add_resources(client_presentation client_presentation_resources
+    PREFIX
+        "/client"
+    FILES
+        styles/dark.qss
 )
 
 target_include_directories(client_presentation
@@ -14,6 +24,7 @@ target_include_directories(client_presentation
 target_link_libraries(client_presentation
     PUBLIC
         client_domain_models
+        client_application
         client_infrastructure_api
         client_infrastructure_repositories
         Qt6::Core

@@ -5,13 +5,17 @@
 #include <QJsonObject>
 #include <QUrlQuery>
 
+namespace {
+    using FileVersion = client::domain::models::FileVersion;
+}
+
 namespace client::infrastructure::api {
 
     FileVersionApi::FileVersionApi(ApiClient& apiClient, QObject* parent)
         : QObject(parent),
           m_apiClient(apiClient) {}
 
-    void FileVersionApi::create(qint64 fileId, const QString& logicalNameSnapshot, VersionCallback callback) {
+    void FileVersionApi::create(qint64 fileId, const QString& logicalNameSnapshot, std::function<void(ApiResult<FileVersion>)> callback) {
         QJsonObject body{
             {"fileId", fileId},
             {"logicalNameSnapshot", logicalNameSnapshot},
@@ -22,7 +26,7 @@ namespace client::infrastructure::api {
         });
     }
 
-    void FileVersionApi::getCurrent(qint64 fileId, VersionCallback callback) {
+    void FileVersionApi::getCurrent(qint64 fileId, std::function<void(ApiResult<FileVersion>)> callback) {
         QUrlQuery query;
         query.addQueryItem("fileId", QString::number(fileId));
 
@@ -31,7 +35,7 @@ namespace client::infrastructure::api {
         });
     }
 
-    void FileVersionApi::getAll(qint64 fileId, VersionsCallback callback) {
+    void FileVersionApi::getAll(qint64 fileId, std::function<void(ApiResult<std::vector<FileVersion>>)> callback) {
         QUrlQuery query;
         query.addQueryItem("fileId", QString::number(fileId));
 
@@ -40,7 +44,7 @@ namespace client::infrastructure::api {
         });
     }
 
-    FileVersionApi::VersionResult FileVersionApi::parseVersionResponse(const RawApiResponse& response) {
+    ApiResult<FileVersion> FileVersionApi::parseVersionResponse(const RawApiResponse& response) {
         if (!response.isSuccessStatus()) {
             return apiFailure(makeHttpError(response, "file version operation failed"));
         }
@@ -54,7 +58,7 @@ namespace client::infrastructure::api {
         return apiSuccess(parseFileVersion(*object));
     }
 
-    FileVersionApi::VersionsResult FileVersionApi::parseVersionsResponse(const RawApiResponse& response) {
+    ApiResult<std::vector<FileVersion>> FileVersionApi::parseVersionsResponse(const RawApiResponse& response) {
         if (!response.isSuccessStatus()) {
             return apiFailure(makeHttpError(response, "failed to load file versions"));
         }

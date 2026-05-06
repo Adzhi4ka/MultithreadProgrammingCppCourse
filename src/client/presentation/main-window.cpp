@@ -1,26 +1,25 @@
 #include "main-window.h"
 
-#include <QAbstractItemView>
+#include "domain/models/acl-level.h"
+#include "presentation/dialogs/group-management-dialog.h"
+#include "presentation/editor-window.h"
+#include "presentation/ui-format.h"
+#include "presentation/widgets/file-info-widget.h"
+#include "presentation/widgets/file-tree-widget.h"
+
 #include <QAction>
 #include <QCloseEvent>
-#include <QDateTime>
 #include <QDialog>
 #include <QDialogButtonBox>
-#include <QHeaderView>
 #include <QInputDialog>
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
-#include <QMainWindow>
+#include <QMenu>
 #include <QMessageBox>
 #include <QPushButton>
-#include <QRegularExpression>
 #include <QSplitter>
 #include <QStatusBar>
-#include <QTextEdit>
-#include <QTimer>
-#include <QToolBar>
-#include <QTreeWidget>
 #include <QVBoxLayout>
 
 #include <algorithm>
@@ -30,33 +29,29 @@ namespace client::presentation {
 
     namespace {
         constexpr qint64 LockDurationSec = 300;
-        constexpr int FileIdRole = Qt::UserRole + 1;
     }
 
-    MainWindow::MainWindow(infrastructure::api::ApiClient& apiClient,
+    MainWindow::MainWindow(application::ClientRuntime& runtime,
                            domain::models::UserSession session,
                            QWidget* parent)
         : QMainWindow(parent),
-          m_apiClient(apiClient),
-          m_session(std::move(session)),
-          m_fileApi(apiClient, this),
-          m_contentApi(apiClient, this),
-          m_lockApi(apiClient, this),
-          m_aclApi(apiClient, this),
-          m_versionApi(apiClient, this) {
+          m_runtime(runtime),
+          m_session(std::move(session)) {
         buildUi();
+        connectRuntimeSignals();
+        m_runtime.startNotifications();
         refreshFiles();
     }
 
     void MainWindow::closeEvent(QCloseEvent* event) {
-        if (m_openedFileId && m_openedLockToken) {
-            const auto fileId = *m_openedFileId;
-            const auto lockToken = *m_openedLockToken;
-            m_openedFileId.reset();
-            m_openedLockToken.reset();
-            m_lockRenewTimer->stop();
-            m_lockApi.release(fileId, lockToken, [](infrastructure::api::ApiResult<void>) {});
+        const auto editors = m_editorWindows;
+        for (const auto& editor : editors) {
+            if (editor) {
+                editor->close();
+            }
         }
+        m_editorWindows.clear();
+        m_runtime.stopNotifications();
 
         QMainWindow::closeEvent(event);
     }
@@ -65,587 +60,409 @@ namespace client::presentation {
         setWindowTitle(QStringLiteral("File Storage Client — %1").arg(m_session.login));
         resize(1200, 720);
 
-        buildToolbar();
-
-        m_fileTree = new QTreeWidget(this);
-        m_fileTree->setHeaderLabels({"Name", "Access", "Lock", "Created by", "Created at"});
-        m_fileTree->setAlternatingRowColors(true);
-        m_fileTree->setSelectionMode(QAbstractItemView::SingleSelection);
-        m_fileTree->header()->setStretchLastSection(false);
-        m_fileTree->header()->setSectionResizeMode(0, QHeaderView::Stretch);
-        m_fileTree->header()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
-        m_fileTree->header()->setSectionResizeMode(2, QHeaderView::ResizeToContents);
-        m_fileTree->header()->setSectionResizeMode(3, QHeaderView::ResizeToContents);
-        m_fileTree->header()->setSectionResizeMode(4, QHeaderView::ResizeToContents);
-
-        m_infoLabel = new QLabel("Select file", this);
-        m_infoLabel->setWordWrap(true);
-        m_infoLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
-
-        m_editor = new QTextEdit(this);
-        m_editor->setPlaceholderText("Open a text file on read or edit");
-        m_editor->setReadOnly(true);
-        m_editor->setEnabled(false);
-
-        m_saveButton = new QPushButton("Save", this);
-        m_releaseButton = new QPushButton("Release lock", this);
-        m_saveButton->setEnabled(false);
-        m_releaseButton->setEnabled(false);
-
-        auto* editorButtons = new QHBoxLayout;
-        editorButtons->addWidget(m_saveButton);
-        editorButtons->addWidget(m_releaseButton);
-        editorButtons->addStretch();
+        m_fileTree = new FileTreeWidget(this);
+        m_infoPanel = new FileInfoWidget(this);
 
         auto* rightPanel = new QWidget(this);
         auto* rightLayout = new QVBoxLayout(rightPanel);
-        rightLayout->addWidget(m_infoLabel);
-        rightLayout->addWidget(m_editor, 1);
-        rightLayout->addLayout(editorButtons);
+        rightLayout->addWidget(m_infoPanel);
+        rightLayout->addStretch(1);
 
         auto* splitter = new QSplitter(this);
         splitter->addWidget(m_fileTree);
         splitter->addWidget(rightPanel);
-        splitter->setStretchFactor(0, 2);
-        splitter->setStretchFactor(1, 3);
+        splitter->setStretchFactor(0, 3);
+        splitter->setStretchFactor(1, 2);
         setCentralWidget(splitter);
 
         m_statusLabel = new QLabel(this);
         statusBar()->addPermanentWidget(m_statusLabel, 1);
 
-        m_lockRenewTimer = new QTimer(this);
-        m_lockRenewTimer->setInterval(120'000);
-
-        connect(m_fileTree, &QTreeWidget::itemSelectionChanged, this, &MainWindow::updateSelectedFileInfo);
-        connect(m_saveButton, &QPushButton::clicked, this, &MainWindow::saveOpenedFile);
-        connect(m_releaseButton, &QPushButton::clicked, this, &MainWindow::releaseOpenedLock);
-        connect(m_lockRenewTimer, &QTimer::timeout, this, &MainWindow::renewLock);
+        connect(m_fileTree, &FileTreeWidget::selectedFileChanged, this, [this]() {
+            m_infoPanel->setFile(m_fileTree->selectedFile());
+        });
+        connect(m_fileTree, &FileTreeWidget::fileActivated, this, [this](qint64) {
+            openSelectedReadOnly();
+        });
+        connect(m_fileTree, &QWidget::customContextMenuRequested, this, &MainWindow::showFileContextMenu);
     }
 
-    void MainWindow::buildToolbar() {
-        auto* toolbar = addToolBar("Main");
-        toolbar->setMovable(false);
+    void MainWindow::connectRuntimeSignals() {
+        connect(&m_runtime, &application::ClientRuntime::filesLoaded, this, &MainWindow::handleFilesLoaded);
+        connect(&m_runtime, &application::ClientRuntime::fileCreated, this, &MainWindow::handleFileCreated);
+        connect(&m_runtime, &application::ClientRuntime::fileRenamed, this, &MainWindow::handleFileRenamed);
+        connect(&m_runtime, &application::ClientRuntime::fileDeleted, this, &MainWindow::handleFileDeleted);
+        connect(&m_runtime, &application::ClientRuntime::currentDownloaded, this, &MainWindow::handleCurrentDownloaded);
+        connect(&m_runtime, &application::ClientRuntime::lockAcquired, this, &MainWindow::handleLockAcquired);
+        connect(&m_runtime, &application::ClientRuntime::versionsLoaded, this, &MainWindow::handleVersionsLoaded);
+        connect(&m_runtime, &application::ClientRuntime::versionDownloaded, this, &MainWindow::handleVersionDownloaded);
+        connect(&m_runtime, &application::ClientRuntime::notificationReceived, this, &MainWindow::handleNotification);
+    }
 
-        toolbar->addAction("Refresh", this, &MainWindow::refreshFiles);
-        toolbar->addSeparator();
-        toolbar->addAction("Create", this, &MainWindow::createFile);
-        toolbar->addAction("Rename", this, &MainWindow::renameFile);
-        toolbar->addAction("Delete", this, &MainWindow::deleteFile);
-        toolbar->addSeparator();
-        toolbar->addAction("Open readonly", this, &MainWindow::openSelectedReadOnly);
-        toolbar->addAction("Take edit", this, &MainWindow::openSelectedForEdit);
-        toolbar->addAction("Versions", this, &MainWindow::showVersions);
-        toolbar->addSeparator();
-        toolbar->addAction("Logout", this, &MainWindow::logout);
+    void MainWindow::showFileContextMenu(const QPoint& position) {
+        if (auto* item = m_fileTree->itemAt(position)) {
+            m_fileTree->setCurrentItem(item);
+        } else {
+            m_fileTree->clearSelection();
+            m_fileTree->setCurrentItem(nullptr);
+        }
+
+        const auto file = selectedFile();
+
+        QMenu menu{this};
+        if (file) {
+            menu.addAction(QStringLiteral("Open readonly"), this, &MainWindow::openSelectedReadOnly);
+
+            auto* editAction = menu.addAction(QStringLiteral("Take edit"), this, &MainWindow::openSelectedForEdit);
+            editAction->setEnabled(domain::models::canWrite(file->aclLevel));
+
+            menu.addAction(QStringLiteral("Versions"), this, &MainWindow::showVersions);
+            menu.addSeparator();
+            menu.addAction(QStringLiteral("Rename"), this, &MainWindow::renameFile);
+            menu.addAction(QStringLiteral("Delete"), this, &MainWindow::deleteFile);
+            menu.addSeparator();
+        }
+
+        menu.addAction(QStringLiteral("Refresh"), this, &MainWindow::refreshFiles);
+        menu.addAction(QStringLiteral("Create file"), this, &MainWindow::createFile);
+        menu.addSeparator();
+        menu.addAction(QStringLiteral("Groups / users"), this, &MainWindow::showGroups);
+        menu.addAction(QStringLiteral("Logout"), this, &MainWindow::logout);
+
+        menu.exec(m_fileTree->viewport()->mapToGlobal(position));
     }
 
     void MainWindow::refreshFiles() {
-        m_statusLabel->setText("Loading files...");
-        m_fileApi.getAll([this](infrastructure::api::FileApi::FilesResult result) mutable {
-            if (!result) {
-                showApiError("Failed to load files", result.error());
-                m_statusLabel->clear();
-                return;
-            }
-
-            renderFiles(*result);
-            m_statusLabel->setText(QStringLiteral("Loaded %1 files").arg(static_cast<qlonglong>(m_filesById.size())));
-        });
-    }
-
-    void MainWindow::renderFiles(const std::vector<domain::models::RemoteFile>& files) {
-        std::vector<domain::models::RemoteFile> visibleFiles = files;
-        QHash<qint64, std::size_t> indexByFileId;
-
-        for (std::size_t i = 0; i < visibleFiles.size(); ++i) {
-            indexByFileId.insert(visibleFiles[i].id, i);
-        }
-
-        // MVP workaround: the current server filters GET /api/files by ACL.
-        // A just-created file may exist on the server but be absent from GET /api/files,
-        // so keep files created/renamed in this client session visible locally.
-        for (auto it = m_localFilesById.cbegin(); it != m_localFilesById.cend(); ++it) {
-            if (auto indexIt = indexByFileId.find(it.key()); indexIt != indexByFileId.end()) {
-                visibleFiles[*indexIt] = it.value();
-            } else {
-                indexByFileId.insert(it.key(), visibleFiles.size());
-                visibleFiles.emplace_back(it.value());
-            }
-        }
-
-        std::sort(visibleFiles.begin(), visibleFiles.end(), [](const auto& lhs, const auto& rhs) {
-            return lhs.fullLogicalName.localeAwareCompare(rhs.fullLogicalName) < 0;
-        });
-
-        m_fileTree->clear();
-        m_filesById.clear();
-        m_itemsByFileId.clear();
-        m_folderItemsByPath.clear();
-
-        for (const auto& file : visibleFiles) {
-            m_filesById.insert(file.id, file);
-            insertFileItem(file);
-        }
-
-        m_fileTree->expandToDepth(1);
-
-        for (const auto& file : visibleFiles) {
-            hydrateFileMeta(file.id);
-        }
-    }
-
-    void MainWindow::rememberLocalFile(domain::models::RemoteFile file) {
-        if (file.createdBy == m_session.userId && file.aclLevel == domain::models::AclLevel::NoProperty) {
-            file.aclLevel = domain::models::AclLevel::ReadWrite;
-        }
-
-        m_localFilesById.insert(file.id, std::move(file));
-    }
-
-    bool MainWindow::isLocalOnlyFile(qint64 fileId) const {
-        return m_localFilesById.contains(fileId);
-    }
-
-    void MainWindow::insertFileItem(const domain::models::RemoteFile& file) {
-        auto logicalName = file.fullLogicalName;
-        logicalName.remove(QRegularExpression(QStringLiteral("^/+")));
-
-        const auto parts = logicalName.split('/', Qt::SkipEmptyParts);
-        if (parts.isEmpty()) {
-            return;
-        }
-
-        QTreeWidgetItem* parent = nullptr;
-        QString currentPath;
-
-        for (int i = 0; i < parts.size() - 1; ++i) {
-            if (!currentPath.isEmpty()) {
-                currentPath += '/';
-            }
-            currentPath += parts[i];
-            parent = ensureFolderItem(parts[i], parent, currentPath);
-        }
-
-        auto* item = parent
-            ? new QTreeWidgetItem(parent)
-            : new QTreeWidgetItem(m_fileTree);
-
-        item->setText(0, parts.constLast());
-        item->setText(1, "visible");
-        item->setText(2, "checking...");
-        item->setText(3, QString::number(file.createdBy));
-        item->setText(4, formatUnixSeconds(file.createdAt));
-        item->setData(0, FileIdRole, file.id);
-
-        m_itemsByFileId.insert(file.id, item);
-    }
-
-    QTreeWidgetItem* MainWindow::ensureFolderItem(const QString& pathPart, QTreeWidgetItem* parent, const QString& fullPath) {
-        if (auto it = m_folderItemsByPath.find(fullPath); it != m_folderItemsByPath.end()) {
-            return it.value();
-        }
-
-        auto* item = parent
-            ? new QTreeWidgetItem(parent)
-            : new QTreeWidgetItem(m_fileTree);
-
-        item->setText(0, pathPart);
-        item->setFirstColumnSpanned(false);
-        m_folderItemsByPath.insert(fullPath, item);
-        return item;
-    }
-
-    void MainWindow::updateSelectedFileInfo() {
-        const auto fileId = selectedFileId();
-        if (!fileId) {
-            m_infoLabel->setText("Select file");
-            return;
-        }
-
-        const auto file = m_filesById.value(*fileId);
-        m_infoLabel->setText(QStringLiteral(
-            "<b>%1</b><br>"
-            "ID: %2<br>"
-            "Current version ID: %3<br>"
-            "Max versions: %4<br>"
-            "Created by: %5<br>"
-            "Created at: %6<br>"
-            "Access: %7<br>"
-            "Lock: %8")
-            .arg(file.fullLogicalName.toHtmlEscaped())
-            .arg(file.id)
-            .arg(file.currentVersionId)
-            .arg(file.maxVersionCount)
-            .arg(file.createdBy)
-            .arg(formatUnixSeconds(file.createdAt))
-            .arg(aclToText(file.aclLevel))
-            .arg(file.hasActiveLock
-                 ? QStringLiteral("locked by %1 until %2").arg(file.lockedByUserId.value_or(0)).arg(formatUnixSeconds(file.lockLeaseUntil.value_or(0)))
-                 : QStringLiteral("free")));
-    }
-
-    void MainWindow::hydrateFileMeta(qint64 fileId) {
-        m_aclApi.getUserAcl(fileId, m_session.userId, [this, fileId](infrastructure::api::FileAclApi::UserAclResult result) mutable {
-            auto itemIt = m_itemsByFileId.find(fileId);
-            auto fileIt = m_filesById.find(fileId);
-            if (itemIt == m_itemsByFileId.end() || fileIt == m_filesById.end()) {
-                return;
-            }
-
-            if (result) {
-                auto aclLevel = result->aclLevel;
-                if (aclLevel == domain::models::AclLevel::NoProperty
-                    && isLocalOnlyFile(fileId)
-                    && fileIt.value().createdBy == m_session.userId) {
-                    aclLevel = domain::models::AclLevel::ReadWrite;
-                }
-
-                fileIt.value().aclLevel = aclLevel;
-                itemIt.value()->setText(1, aclToText(aclLevel));
-                updateSelectedFileInfo();
-            }
-        });
-
-        m_lockApi.getActive(fileId, [this, fileId](infrastructure::api::FileLockApi::LockResult result) mutable {
-            auto itemIt = m_itemsByFileId.find(fileId);
-            auto fileIt = m_filesById.find(fileId);
-            if (itemIt == m_itemsByFileId.end() || fileIt == m_filesById.end()) {
-                return;
-            }
-
-            if (result) {
-                fileIt.value().hasActiveLock = true;
-                fileIt.value().lockedByUserId = result->userId;
-                fileIt.value().lockLeaseUntil = result->leaseUntil;
-                itemIt.value()->setText(2, QStringLiteral("locked by %1").arg(result->userId));
-            } else {
-                fileIt.value().hasActiveLock = false;
-                fileIt.value().lockedByUserId.reset();
-                fileIt.value().lockLeaseUntil.reset();
-                itemIt.value()->setText(2, "free");
-            }
-
-            updateSelectedFileInfo();
-        });
+        m_statusLabel->setText(QStringLiteral("Loading files..."));
+        m_runtime.loadFilesWithMeta(m_session.userId);
     }
 
     void MainWindow::createFile() {
         bool ok = false;
         const auto logicalName = QInputDialog::getText(this,
-                                                       "Create file",
-                                                       "Logical name, for example /docs/a.txt",
+                                                       QStringLiteral("Create file"),
+                                                       QStringLiteral("Logical name, for example /docs/a.txt"),
                                                        QLineEdit::Normal,
-                                                       "/new-file.txt",
+                                                       QStringLiteral("/new-file.txt"),
                                                        &ok).trimmed();
         if (!ok || logicalName.isEmpty()) {
             return;
         }
 
-        const auto maxVersions = QInputDialog::getInt(this, "Create file", "Max version count", 10, 1, 1000, 1, &ok);
+        const auto maxVersions = QInputDialog::getInt(this,
+                                                      QStringLiteral("Create file"),
+                                                      QStringLiteral("Max version count"),
+                                                      10,
+                                                      1,
+                                                      1000,
+                                                      1,
+                                                      &ok);
         if (!ok) {
             return;
         }
 
-        m_fileApi.create(logicalName, static_cast<quint32>(maxVersions), [this](infrastructure::api::FileApi::FileResult result) mutable {
-            if (!result) {
-                showApiError("Failed to create file", result.error());
-                return;
-            }
-
-            rememberLocalFile(*result);
-            refreshFiles();
-        });
+        m_statusLabel->setText(QStringLiteral("Creating file..."));
+        m_runtime.createFile(logicalName, static_cast<quint32>(maxVersions));
     }
 
     void MainWindow::renameFile() {
-        const auto fileId = selectedFileId();
-        if (!fileId) {
+        const auto file = selectedFile();
+        if (!file) {
             return;
         }
 
         bool ok = false;
         const auto newName = QInputDialog::getText(this,
-                                                   "Rename file",
-                                                   "New logical name",
+                                                   QStringLiteral("Rename file"),
+                                                   QStringLiteral("New logical name"),
                                                    QLineEdit::Normal,
-                                                   selectedLogicalName(),
+                                                   file->fullLogicalName,
                                                    &ok).trimmed();
         if (!ok || newName.isEmpty()) {
             return;
         }
 
-        m_fileApi.rename(*fileId, newName, [this](infrastructure::api::FileApi::FileResult result) mutable {
-            if (!result) {
-                showApiError("Failed to rename file", result.error());
-                return;
-            }
-
-            rememberLocalFile(*result);
-            refreshFiles();
-        });
+        m_statusLabel->setText(QStringLiteral("Renaming file..."));
+        m_runtime.renameFile(file->id, newName);
     }
 
     void MainWindow::deleteFile() {
-        const auto fileId = selectedFileId();
-        if (!fileId) {
+        const auto file = selectedFile();
+        if (!file) {
             return;
         }
 
-        if (QMessageBox::question(this, "Delete file", "Delete selected file?") != QMessageBox::Yes) {
+        if (QMessageBox::question(this,
+                                  QStringLiteral("Delete file"),
+                                  QStringLiteral("Delete %1?").arg(file->fullLogicalName)) != QMessageBox::Yes) {
             return;
         }
 
-        const auto removedFileId = *fileId;
-        m_fileApi.remove(removedFileId, [this, removedFileId](infrastructure::api::ApiResult<void> result) mutable {
-            if (!result) {
-                showApiError("Failed to delete file", result.error());
-                return;
-            }
-
-            m_localFilesById.remove(removedFileId);
-
-            if (m_openedFileId == selectedFileId()) {
-                m_editor->clear();
-                m_openedFileId.reset();
-                m_openedLockToken.reset();
-                setEditorState(false, true);
-            }
-            refreshFiles();
-        });
+        m_statusLabel->setText(QStringLiteral("Deleting file..."));
+        m_runtime.deleteFile(file->id);
     }
 
     void MainWindow::openSelectedReadOnly() {
-        const auto fileId = selectedFileId();
-        if (!fileId) {
+        const auto file = selectedFile();
+        if (!file) {
             return;
         }
 
-        m_statusLabel->setText("Downloading file...");
-        m_contentApi.downloadCurrent(*fileId, [this, fileId](infrastructure::api::FileContentApi::BytesResult result) mutable {
-            m_statusLabel->clear();
-            if (!result) {
-                showApiError("Failed to download file", result.error());
-                return;
-            }
-
-            m_openedFileId = fileId;
-            m_openedLogicalName = selectedLogicalName();
-            m_editor->setPlainText(QString::fromUtf8(*result));
-            setEditorState(true, true, QStringLiteral("Readonly: %1").arg(m_openedLogicalName));
-        });
+        m_pendingReadOnlyFile = file;
+        m_statusLabel->setText(QStringLiteral("Downloading file..."));
+        m_runtime.downloadCurrent(file->id);
     }
 
     void MainWindow::openSelectedForEdit() {
-        const auto fileId = selectedFileId();
-        if (!fileId) {
+        const auto file = selectedFile();
+        if (!file) {
             return;
         }
 
-        m_statusLabel->setText("Acquiring lock...");
-        m_lockApi.acquire(*fileId, LockDurationSec, [this, fileId](infrastructure::api::FileLockApi::LockResult lockResult) mutable {
-            if (!lockResult) {
-                m_statusLabel->clear();
-                showApiError("Failed to acquire file lock", lockResult.error());
-                return;
-            }
-
-            m_openedLockToken = lockResult->lockToken;
-            m_releaseButton->setEnabled(true);
-            m_lockRenewTimer->start();
-
-            m_statusLabel->setText("Downloading file...");
-            m_contentApi.downloadCurrent(*fileId, [this, fileId](infrastructure::api::FileContentApi::BytesResult contentResult) mutable {
-                m_statusLabel->clear();
-                if (!contentResult) {
-                    showApiError("Failed to download file", contentResult.error());
-                    releaseOpenedLock();
-                    return;
-                }
-
-                m_openedFileId = fileId;
-                m_openedLogicalName = selectedLogicalName();
-                m_editor->setPlainText(QString::fromUtf8(*contentResult));
-                setEditorState(true, false, QStringLiteral("Editing: %1").arg(m_openedLogicalName));
-                refreshFiles();
-            });
-        });
-    }
-
-    void MainWindow::saveOpenedFile() {
-        if (!m_openedFileId || !m_openedLockToken) {
-            return;
-        }
-
-        m_statusLabel->setText("Saving file...");
-        m_contentApi.uploadCurrent(*m_openedFileId, m_editor->toPlainText().toUtf8(), [this](infrastructure::api::FileContentApi::VersionResult result) mutable {
-            m_statusLabel->clear();
-            if (!result) {
-                showApiError("Failed to save file", result.error());
-                return;
-            }
-
-            statusBar()->showMessage(QStringLiteral("Saved version %1").arg(result->version), 3000);
-            refreshFiles();
-        });
-    }
-
-    void MainWindow::releaseOpenedLock() {
-        if (!m_openedFileId || !m_openedLockToken) {
-            return;
-        }
-
-        const auto fileId = *m_openedFileId;
-        const auto lockToken = *m_openedLockToken;
-        m_openedLockToken.reset();
-        m_lockRenewTimer->stop();
-        m_releaseButton->setEnabled(false);
-        m_saveButton->setEnabled(false);
-        m_editor->setReadOnly(true);
-
-        m_lockApi.release(fileId, lockToken, [this](infrastructure::api::ApiResult<void>) mutable {
-            refreshFiles();
-        });
+        m_pendingEditFile = file;
+        m_pendingEditLock.reset();
+        m_statusLabel->setText(QStringLiteral("Acquiring lock..."));
+        m_runtime.acquireLock(file->id, LockDurationSec);
     }
 
     void MainWindow::showVersions() {
-        const auto fileId = selectedFileId();
-        if (!fileId) {
+        const auto file = selectedFile();
+        if (!file) {
             return;
         }
 
-        m_versionApi.getAll(*fileId, [this](infrastructure::api::FileVersionApi::VersionsResult result) mutable {
-            if (!result) {
-                showApiError("Failed to load versions", result.error());
-                return;
-            }
-
-            QDialog dialog(this);
-            dialog.setWindowTitle("File versions");
-            dialog.resize(520, 360);
-
-            auto* list = new QListWidget(&dialog);
-            for (const auto& version : *result) {
-                auto* item = new QListWidgetItem(QStringLiteral("v%1 | id=%2 | %3")
-                                                     .arg(version.version)
-                                                     .arg(version.id)
-                                                     .arg(formatUnixSeconds(version.createdAt)), list);
-                item->setData(Qt::UserRole, version.id);
-            }
-
-            auto* buttons = new QDialogButtonBox(QDialogButtonBox::Open | QDialogButtonBox::Close, &dialog);
-            auto* layout = new QVBoxLayout(&dialog);
-            layout->addWidget(list);
-            layout->addWidget(buttons);
-
-            connect(buttons, &QDialogButtonBox::accepted, &dialog, [&]() {
-                if (auto* item = list->currentItem()) {
-                    openVersion(item->data(Qt::UserRole).toLongLong());
-                    dialog.accept();
-                }
-            });
-            connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
-
-            dialog.exec();
-        });
+        m_pendingVersionsFileId = file->id;
+        m_statusLabel->setText(QStringLiteral("Loading versions..."));
+        m_runtime.loadVersions(file->id);
     }
 
     void MainWindow::openVersion(qint64 versionId) {
-        m_contentApi.downloadVersion(versionId, [this, versionId](infrastructure::api::FileContentApi::BytesResult result) mutable {
-            if (!result) {
-                showApiError("Failed to download version", result.error());
-                return;
-            }
-
-            m_openedFileId.reset();
-            m_openedLogicalName = QStringLiteral("version %1").arg(versionId);
-            m_editor->setPlainText(QString::fromUtf8(*result));
-            setEditorState(true, true, QStringLiteral("Readonly: version %1").arg(versionId));
-        });
+        m_pendingVersionId = versionId;
+        m_statusLabel->setText(QStringLiteral("Downloading version..."));
+        m_runtime.downloadVersion(versionId);
     }
 
-    void MainWindow::renewLock() {
-        if (!m_openedFileId || !m_openedLockToken) {
-            return;
-        }
-
-        m_lockApi.renew(*m_openedFileId, *m_openedLockToken, LockDurationSec, [this](infrastructure::api::ApiResult<void> result) mutable {
-            if (!result) {
-                statusBar()->showMessage("Failed to renew lock", 5000);
-                m_lockRenewTimer->stop();
-            }
-        });
+    void MainWindow::showGroups() {
+        GroupManagementDialog dialog{m_runtime, m_session, this};
+        dialog.exec();
     }
 
     void MainWindow::logout() {
-        if (m_openedFileId && m_openedLockToken) {
-            const auto fileId = *m_openedFileId;
-            const auto lockToken = *m_openedLockToken;
-            m_openedFileId.reset();
-            m_openedLockToken.reset();
-            m_lockRenewTimer->stop();
-            m_lockApi.release(fileId, lockToken, [](infrastructure::api::ApiResult<void>) {});
+        const auto editors = m_editorWindows;
+        for (const auto& editor : editors) {
+            if (editor) {
+                editor->close();
+            }
         }
+        m_editorWindows.clear();
 
-        m_apiClient.clearBearerToken();
+        m_runtime.logout();
         close();
     }
 
-    std::optional<qint64> MainWindow::selectedFileId() const {
-        auto* item = m_fileTree->currentItem();
-        if (!item) {
-            return std::nullopt;
+    void MainWindow::handleFilesLoaded(qint64 currentUserId, ApiResult<std::vector<domain::models::RemoteFile>> result) {
+        if (currentUserId != m_session.userId) {
+            return;
         }
 
-        const auto value = item->data(0, FileIdRole);
-        if (!value.isValid()) {
-            return std::nullopt;
+        if (!result) {
+            showApiError(QStringLiteral("Failed to load files"), result.error());
+            m_statusLabel->clear();
+            return;
         }
 
-        return value.toLongLong();
+        m_fileTree->setFiles(*result);
+        m_statusLabel->setText(QStringLiteral("Loaded %1 files").arg(m_fileTree->fileCount()));
     }
 
-    QString MainWindow::selectedLogicalName() const {
-        const auto fileId = selectedFileId();
-        if (!fileId) {
-            return {};
+    void MainWindow::handleFileCreated(ApiResult<domain::models::RemoteFile> result) {
+        if (!result) {
+            showApiError(QStringLiteral("Failed to create file"), result.error());
+            m_statusLabel->clear();
+            return;
         }
 
-        return m_filesById.value(*fileId).fullLogicalName;
+        refreshFiles();
     }
 
-    QString MainWindow::aclToText(domain::models::AclLevel aclLevel) {
-        switch (aclLevel) {
-            case domain::models::AclLevel::NoProperty:
-                return "visible";
-            case domain::models::AclLevel::ReadOnly:
-                return "read only";
-            case domain::models::AclLevel::ReadWrite:
-                return "read/write";
+    void MainWindow::handleFileRenamed(qint64, ApiResult<domain::models::RemoteFile> result) {
+        if (!result) {
+            showApiError(QStringLiteral("Failed to rename file"), result.error());
+            m_statusLabel->clear();
+            return;
         }
 
-        return "unknown";
+        refreshFiles();
     }
 
-    QString MainWindow::formatUnixSeconds(qint64 seconds) {
-        if (seconds <= 0) {
-            return {};
+    void MainWindow::handleFileDeleted(qint64, ApiResult<void> result) {
+        if (!result) {
+            showApiError(QStringLiteral("Failed to delete file"), result.error());
+            m_statusLabel->clear();
+            return;
         }
 
-        return QDateTime::fromSecsSinceEpoch(seconds).toLocalTime().toString("yyyy-MM-dd HH:mm:ss");
+        refreshFiles();
     }
 
-    void MainWindow::setEditorState(bool enabled, bool readOnly, QString title) {
-        m_editor->setEnabled(enabled);
-        m_editor->setReadOnly(readOnly);
-        m_saveButton->setEnabled(enabled && !readOnly && m_openedLockToken.has_value());
-        m_releaseButton->setEnabled(m_openedLockToken.has_value());
+    void MainWindow::handleCurrentDownloaded(qint64 fileId, ApiResult<QByteArray> result) {
+        if (m_pendingEditFile && m_pendingEditFile->id == fileId && m_pendingEditLock) {
+            m_statusLabel->clear();
+            const auto file = *m_pendingEditFile;
+            const auto lock = *m_pendingEditLock;
+            m_pendingEditFile.reset();
+            m_pendingEditLock.reset();
 
-        if (!title.isEmpty()) {
-            statusBar()->showMessage(title, 3000);
+            if (!result) {
+                showApiError(QStringLiteral("Failed to download file"), result.error());
+                m_runtime.releaseLock(lock.fileId, lock.lockToken);
+                return;
+            }
+
+            auto* editor = EditorWindow::createEditable(m_runtime,
+                                                        file.id,
+                                                        lock.lockToken,
+                                                        file.fullLogicalName,
+                                                        std::move(*result));
+            registerEditor(editor);
+            editor->show();
+            refreshFiles();
+            return;
+        }
+
+        if (!m_pendingReadOnlyFile || m_pendingReadOnlyFile->id != fileId) {
+            return;
+        }
+
+        m_statusLabel->clear();
+        const auto file = *m_pendingReadOnlyFile;
+        m_pendingReadOnlyFile.reset();
+
+        if (!result) {
+            showApiError(QStringLiteral("Failed to download file"), result.error());
+            return;
+        }
+
+        auto* editor = EditorWindow::createReadOnly(m_runtime, file.fullLogicalName, std::move(*result));
+        registerEditor(editor);
+        editor->show();
+    }
+
+    void MainWindow::handleLockAcquired(qint64 fileId, ApiResult<domain::models::FileLock> result) {
+        if (!m_pendingEditFile || m_pendingEditFile->id != fileId) {
+            return;
+        }
+
+        if (!result) {
+            m_pendingEditFile.reset();
+            m_pendingEditLock.reset();
+            m_statusLabel->clear();
+            showApiError(QStringLiteral("Failed to acquire file lock"), result.error());
+            return;
+        }
+
+        m_pendingEditLock = *result;
+        m_statusLabel->setText(QStringLiteral("Downloading file..."));
+        m_runtime.downloadCurrent(fileId);
+    }
+
+    void MainWindow::handleVersionsLoaded(qint64 fileId, ApiResult<std::vector<domain::models::FileVersion>> result) {
+        if (!m_pendingVersionsFileId || *m_pendingVersionsFileId != fileId) {
+            return;
+        }
+        m_pendingVersionsFileId.reset();
+        m_statusLabel->clear();
+
+        if (!result) {
+            showApiError(QStringLiteral("Failed to load versions"), result.error());
+            return;
+        }
+
+        QDialog dialog(this);
+        dialog.setWindowTitle(QStringLiteral("File versions"));
+        dialog.resize(520, 360);
+
+        auto* list = new QListWidget(&dialog);
+        for (const auto& version : *result) {
+            auto* item = new QListWidgetItem(QStringLiteral("v%1 | id=%2 | %3")
+                                                 .arg(version.version)
+                                                 .arg(version.id)
+                                                 .arg(formatUnixSeconds(version.createdAt)), list);
+            item->setData(Qt::UserRole, version.id);
+        }
+
+        auto* buttons = new QDialogButtonBox(QDialogButtonBox::Open | QDialogButtonBox::Close, &dialog);
+        auto* layout = new QVBoxLayout(&dialog);
+        layout->addWidget(list);
+        layout->addWidget(buttons);
+
+        connect(buttons, &QDialogButtonBox::accepted, &dialog, [&]() {
+            if (auto* item = list->currentItem()) {
+                openVersion(item->data(Qt::UserRole).toLongLong());
+                dialog.accept();
+            }
+        });
+        connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+
+        dialog.exec();
+    }
+
+    void MainWindow::handleVersionDownloaded(qint64 versionId, ApiResult<QByteArray> result) {
+        if (!m_pendingVersionId || *m_pendingVersionId != versionId) {
+            return;
+        }
+        m_pendingVersionId.reset();
+        m_statusLabel->clear();
+
+        if (!result) {
+            showApiError(QStringLiteral("Failed to download version"), result.error());
+            return;
+        }
+
+        auto* editor = EditorWindow::createReadOnly(m_runtime,
+                                                    QStringLiteral("version %1").arg(versionId),
+                                                    std::move(*result));
+        registerEditor(editor);
+        editor->show();
+    }
+
+    void MainWindow::handleNotification(ApiResult<domain::models::NotificationEvent> result) {
+        if (!result) {
+            m_statusLabel->setText(QStringLiteral("Notification stream disconnected"));
+            return;
+        }
+
+        const auto& event = *result;
+        if (event.name == QStringLiteral("connected")) {
+            m_statusLabel->setText(QStringLiteral("Notifications connected"));
+            return;
+        }
+
+        if (event.name == QStringLiteral("file_created")
+            || event.name == QStringLiteral("file_locked")
+            || event.name == QStringLiteral("group_assigned")) {
+            refreshFiles();
         }
     }
 
-    void MainWindow::showApiError(const QString& title, const infrastructure::api::ApiError& error) {
+    std::optional<domain::models::RemoteFile> MainWindow::selectedFile() const {
+        return m_fileTree->selectedFile();
+    }
+
+    void MainWindow::registerEditor(EditorWindow* window) {
+        m_editorWindows.push_back(QPointer<EditorWindow>{window});
+        connect(window, &QObject::destroyed, this, [this, window]() {
+            m_editorWindows.erase(std::remove_if(m_editorWindows.begin(),
+                                                 m_editorWindows.end(),
+                                                 [window](const QPointer<EditorWindow>& current) {
+                                                     return current.isNull() || current.data() == window;
+                                                 }),
+                                  m_editorWindows.end());
+            refreshFiles();
+        });
+    }
+
+    void MainWindow::showApiError(const QString& title, const ApiError& error) {
         const auto message = QStringLiteral("%1%2")
             .arg(error.httpStatus > 0 ? QStringLiteral("HTTP %1: ").arg(error.httpStatus) : QStringLiteral("Network error: "))
             .arg(error.message.isEmpty() ? QStringLiteral("unknown error") : error.message);

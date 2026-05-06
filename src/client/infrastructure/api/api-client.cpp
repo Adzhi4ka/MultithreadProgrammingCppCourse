@@ -29,12 +29,12 @@ namespace client::infrastructure::api {
         return m_bearerToken;
     }
 
-    void ApiClient::get(const QString& path, const QUrlQuery& query, RawApiCallback callback) {
+    void ApiClient::get(const QString& path, const QUrlQuery& query, std::function<void(RawApiResponse)> callback) {
         auto request = makeRequest(path, query);
         send(m_network.get(request), std::move(callback));
     }
 
-    void ApiClient::postJson(const QString& path, const QJsonObject& body, RawApiCallback callback) {
+    void ApiClient::postJson(const QString& path, const QJsonObject& body, std::function<void(RawApiResponse)> callback) {
         auto request = makeRequest(path);
         request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json; charset=utf-8");
 
@@ -42,7 +42,7 @@ namespace client::infrastructure::api {
         send(m_network.post(request, bytes), std::move(callback));
     }
 
-    void ApiClient::putJson(const QString& path, const QJsonObject& body, RawApiCallback callback) {
+    void ApiClient::putJson(const QString& path, const QJsonObject& body, std::function<void(RawApiResponse)> callback) {
         auto request = makeRequest(path);
         request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json; charset=utf-8");
 
@@ -54,18 +54,21 @@ namespace client::infrastructure::api {
                            const QUrlQuery& query,
                            const QByteArray& body,
                            const QByteArray& contentType,
-                           RawApiCallback callback) {
+                           std::function<void(RawApiResponse)> callback) {
+
         auto request = makeRequest(path, query);
         request.setHeader(QNetworkRequest::ContentTypeHeader, contentType);
         send(m_network.put(request, body), std::move(callback));
     }
 
-    void ApiClient::deleteRequest(const QString& path, const QUrlQuery& query, RawApiCallback callback) {
+    void ApiClient::deleteRequest(const QString& path, const QUrlQuery& query, std::function<void(RawApiResponse)> callback) {
+
         auto request = makeRequest(path, query);
         send(m_network.deleteResource(request), std::move(callback));
     }
 
-    void ApiClient::deleteJson(const QString& path, const QJsonObject& body, RawApiCallback callback) {
+    void ApiClient::deleteJson(const QString& path, const QJsonObject& body, std::function<void(RawApiResponse)> callback) {
+
         auto request = makeRequest(path);
         request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json; charset=utf-8");
 
@@ -74,6 +77,7 @@ namespace client::infrastructure::api {
     }
 
     QNetworkRequest ApiClient::makeRequest(const QString& path, const QUrlQuery& query) const {
+
         auto normalizedPath = path;
         if (!normalizedPath.startsWith('/')) {
             normalizedPath.prepend('/');
@@ -93,7 +97,8 @@ namespace client::infrastructure::api {
         return request;
     }
 
-    void ApiClient::send(QNetworkReply* reply, RawApiCallback callback) const {
+    void ApiClient::send(QNetworkReply* reply, std::function<void(RawApiResponse)> callback) const {
+
         QObject::connect(reply, &QNetworkReply::finished, reply, [reply, callback = std::move(callback)]() mutable {
             RawApiResponse response;
             response.networkError = reply->error();
