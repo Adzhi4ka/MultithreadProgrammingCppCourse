@@ -13,6 +13,7 @@ namespace {
     using FileLock = client::domain::models::FileLock;
     using UserFileAcl = client::domain::models::UserFileAcl;
     using UserProfile = client::domain::models::UserProfile;
+    using AclLevel = client::domain::models::AclLevel;
 }
 
 namespace client::domain::services {
@@ -47,6 +48,7 @@ namespace client::domain::services {
 
     void FileCatalogService::createFile(QString logicalName,
                                         quint32 maxVersionCount,
+                                        qint64 ownerGroupId,
                                         std::function<void(ApiResult<RemoteFile>)> callback) {
         auto cb = std::make_shared<std::function<void(ApiResult<RemoteFile>)>>(std::move(callback));
         QPointer<QObject> internalContext{&m_internalContext};
@@ -55,19 +57,48 @@ namespace client::domain::services {
 
         m_networkWorker.run([logicalName = std::move(logicalName),
                              maxVersionCount,
+                             ownerGroupId,
                              internalContext,
                              uiContext,
                              cb,
                              fileRepository](RemoteApiGateway& gateway) mutable {
-            gateway.fileApi().create(logicalName, maxVersionCount, [internalContext, uiContext, cb, fileRepository](ApiResult<RemoteFile> result) mutable {
-                ::client::application::postTask(internalContext,
-                                      [uiContext, cb, fileRepository, result = std::move(result)]() mutable {
-                                          if (result) {
-                                              fileRepository->upsert(*result);
-                                          }
+            auto* gatewayPtr = &gateway;
+            gateway.fileApi().create(logicalName,
+                                     maxVersionCount,
+                                     [ownerGroupId, internalContext, uiContext, cb, fileRepository, gatewayPtr](ApiResult<RemoteFile> result) mutable {
+                if (!result) {
+                    ::client::application::postTask(internalContext,
+                                          [uiContext, cb, result = std::move(result)]() mutable {
+                                              ::client::application::postResult(uiContext, cb, std::move(result));
+                                          });
+                    return;
+                }
 
-                                          ::client::application::postResult(uiContext, cb, std::move(result));
-                                      });
+                auto createdFile = *result;
+                gatewayPtr->aclApi().setGroupAcl(createdFile.id,
+                                                 ownerGroupId,
+                                                 AclLevel::ReadWrite,
+                                                 [createdFile = std::move(createdFile),
+                                                  internalContext,
+                                                  uiContext,
+                                                  cb,
+                                                  fileRepository](auto aclResult) mutable {
+                    ::client::application::postTask(internalContext,
+                                          [uiContext,
+                                           cb,
+                                           fileRepository,
+                                           createdFile = std::move(createdFile),
+                                           aclResult = std::move(aclResult)]() mutable {
+                                              if (!aclResult) {
+                                                  ApiResult<RemoteFile> failure = apiFailure(std::move(aclResult.error()));
+                                                  ::client::application::postResult(uiContext, cb, std::move(failure));
+                                                  return;
+                                              }
+
+                                              fileRepository->upsert(createdFile);
+                                              ::client::application::postResult(uiContext, cb, apiSuccess(std::move(createdFile)));
+                                          });
+                });
             });
         });
     }

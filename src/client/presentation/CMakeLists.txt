@@ -7,6 +7,7 @@ add_library(client_presentation STATIC
     widgets/file-tree-widget.cpp
     widgets/file-info-widget.cpp
     dialogs/group-management-dialog.cpp
+    dialogs/create-file-dialog.cpp
 )
 
 qt_add_resources(client_presentation client_presentation_resources

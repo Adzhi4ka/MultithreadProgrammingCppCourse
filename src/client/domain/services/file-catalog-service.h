@@ -25,6 +25,7 @@ namespace client::domain::services {
                             std::function<void(ApiResult<std::vector<RemoteFile>>)> callback);
             void createFile(QString logicalName,
                             quint32 maxVersionCount,
+                            qint64 ownerGroupId,
                             std::function<void(ApiResult<RemoteFile>)> callback);
             void renameFile(qint64 fileId,
                             QString newLogicalName,

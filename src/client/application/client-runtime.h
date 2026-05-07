@@ -75,7 +75,7 @@ namespace client::application {
             void logout();
 
             void loadFilesWithMeta(qint64 currentUserId);
-            void createFile(QString logicalName, quint32 maxVersionCount);
+            void createFile(QString logicalName, quint32 maxVersionCount, qint64 ownerGroupId);
             void renameFile(qint64 fileId, QString newLogicalName);
             void deleteFile(qint64 fileId);
 

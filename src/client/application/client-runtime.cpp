@@ -147,10 +147,11 @@ namespace client::application {
         });
     }
 
-    void ClientRuntime::createFile(QString logicalName, quint32 maxVersionCount) {
-        postInternal([this, logicalName = std::move(logicalName), maxVersionCount]() mutable {
+    void ClientRuntime::createFile(QString logicalName, quint32 maxVersionCount, qint64 ownerGroupId) {
+        postInternal([this, logicalName = std::move(logicalName), maxVersionCount, ownerGroupId]() mutable {
             m_fileCatalogService->createFile(std::move(logicalName),
                                              maxVersionCount,
+                                             ownerGroupId,
                                              [this](ApiResult<domain::models::RemoteFile> result) mutable {
                                                  emit fileCreated(std::move(result));
                                              });

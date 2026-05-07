@@ -1,6 +1,7 @@
 #include "main-window.h"
 
 #include "domain/models/acl-level.h"
+#include "presentation/dialogs/create-file-dialog.h"
 #include "presentation/dialogs/group-management-dialog.h"
 #include "presentation/editor-window.h"
 #include "presentation/ui-format.h"
@@ -18,6 +19,7 @@
 #include <QMenu>
 #include <QMenuBar>
 #include <QMessageBox>
+#include <QMetaObject>
 #include <QPushButton>
 #include <QSplitter>
 #include <QStatusBar>
@@ -26,6 +28,7 @@
 
 #include <algorithm>
 #include <utility>
+#include <vector>
 
 namespace client::presentation {
 
@@ -170,31 +173,38 @@ namespace client::presentation {
     }
 
     void MainWindow::createFile() {
-        bool ok = false;
-        const auto logicalName = QInputDialog::getText(this,
-                                                       QStringLiteral("Create file"),
-                                                       QStringLiteral("Logical name, for example /docs/a.txt"),
-                                                       QLineEdit::Normal,
-                                                       QStringLiteral("/new-file.txt"),
-                                                       &ok).trimmed();
-        if (!ok || logicalName.isEmpty()) {
+        CreateFileDialog dialog(m_session.login, this);
+
+        QMetaObject::Connection groupsLoadedConnection;
+        groupsLoadedConnection = connect(&m_runtime,
+                                         &application::ClientRuntime::currentUserGroupsLoaded,
+                                         &dialog,
+                                         [this, &dialog](qint64 currentUserId,
+                                                         ApiResult<std::vector<domain::models::Group>> result) mutable {
+                                             if (currentUserId != m_session.userId) {
+                                                 return;
+                                             }
+
+                                             dialog.setGroups(std::move(result));
+                                         });
+
+        dialog.setLoadingGroups();
+        m_runtime.loadCurrentUserGroups(m_session.userId);
+
+        if (dialog.exec() != QDialog::Accepted) {
+            disconnect(groupsLoadedConnection);
             return;
         }
 
-        const auto maxVersions = QInputDialog::getInt(this,
-                                                      QStringLiteral("Create file"),
-                                                      QStringLiteral("Max version count"),
-                                                      10,
-                                                      1,
-                                                      1000,
-                                                      1,
-                                                      &ok);
-        if (!ok) {
-            return;
-        }
+        const auto logicalName = dialog.logicalName();
+        const auto maxVersions = dialog.maxVersionCount();
+        const auto ownerGroupId = dialog.selectedGroupId();
+        const auto ownerGroupName = dialog.selectedGroupName();
 
-        m_statusLabel->setText(QStringLiteral("Creating file..."));
-        m_runtime.createFile(logicalName, static_cast<quint32>(maxVersions));
+        disconnect(groupsLoadedConnection);
+
+        m_statusLabel->setText(QStringLiteral("Creating file for group %1...").arg(ownerGroupName));
+        m_runtime.createFile(logicalName, maxVersions, ownerGroupId);
     }
 
     void MainWindow::renameFile() {
@@ -487,7 +497,6 @@ namespace client::presentation {
 
         if (event.name == QStringLiteral("file_created")
             || event.name == QStringLiteral("file_locked")
-            || event.name == QStringLiteral("file_unlocked")
             || event.name == QStringLiteral("group_assigned")) {
             refreshFiles();
         }
