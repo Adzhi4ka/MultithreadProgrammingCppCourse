@@ -1,7 +1,12 @@
+if(POLICY CMP0167)
+  cmake_policy(SET CMP0167 NEW)
+endif()
+
 find_package(Boost REQUIRED COMPONENTS system json)
 
 add_library(server_presentation_http STATIC
     auth-controller.cpp
+    user-controller.cpp
     notification-controller.cpp
     group-controller.cpp
     file-acl-controller.cpp

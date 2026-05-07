@@ -27,7 +27,7 @@ target_include_directories(server_infrastructure_database_sqlite
 target_link_libraries(server_infrastructure_database_sqlite
     PUBLIC
         SQLiteCpp
-        SQLite::SQLite3
+        SQLite3::SQLite3
 )
 
 target_compile_features(server_infrastructure_database_sqlite

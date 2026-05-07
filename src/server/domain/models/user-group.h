@@ -4,9 +4,9 @@
 
 namespace domain::models {
 
-    struct UserGroup {
+struct UserGroup {
         int64_t userId;
         int64_t groupId;
-    };
+};
 
-}
+}  // namespace domain::models

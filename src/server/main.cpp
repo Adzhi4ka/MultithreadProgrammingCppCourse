@@ -1,3 +1,17 @@
+#include <algorithm>
+#include <boost/asio/io_context.hpp>
+#include <boost/asio/ip/tcp.hpp>
+#include <boost/asio/signal_set.hpp>
+#include <csignal>
+#include <cstring>
+#include <filesystem>
+#include <iostream>
+#include <stdexcept>
+#include <string_view>
+#include <thread>
+#include <vector>
+
+#include "domain/notifications/notification-publisher.h"
 #include "domain/services/file-acl-service.h"
 #include "domain/services/file-content-service.h"
 #include "domain/services/file-lock-service.h"
@@ -5,8 +19,6 @@
 #include "domain/services/file-version-service.h"
 #include "domain/services/group-service.h"
 #include "domain/services/user-service.h"
-#include "domain/notifications/notification-publisher.h"
-
 #include "infrastructure/database/sqlite/database-factory.h"
 #include "infrastructure/database/sqlite/sqlite-database.h"
 #include "infrastructure/execution/thread-pool.h"
@@ -23,53 +35,39 @@
 #include "infrastructure/repositories/user-repository.h"
 #include "infrastructure/security/auth-token-store.h"
 #include "infrastructure/security/password-hasher.h"
-
 #include "presentation/http/auth-controller.h"
 #include "presentation/http/file-acl-controller.h"
 #include "presentation/http/file-content-controller.h"
 #include "presentation/http/file-controller.h"
-#include "presentation/http/file-version-controller.h"
 #include "presentation/http/file-lock-controller.h"
+#include "presentation/http/file-version-controller.h"
 #include "presentation/http/group-controller.h"
 #include "presentation/http/notification-controller.h"
 #include "presentation/http/sse-notification-bridge.h"
-
-#include <boost/asio/io_context.hpp>
-#include <boost/asio/ip/tcp.hpp>
-#include <boost/asio/signal_set.hpp>
-
-#include <algorithm>
-#include <csignal>
-#include <cstring>
-#include <filesystem>
-#include <iostream>
-#include <stdexcept>
-#include <string_view>
-#include <thread>
-#include <vector>
+#include "presentation/http/user-controller.h"
 
 namespace infrastructure::file_storage {
 
-    std::array<char, 124> FileStorage::m_pathBuf {};
-    std::size_t FileStorage::m_prefixLen = 0;
+std::array<char, 124> FileStorage::m_pathBuf{};
+std::size_t FileStorage::m_prefixLen = 0;
 
-}
+}  // namespace infrastructure::file_storage
 
 namespace {
 
-    void initializeFileStoragePrefix(std::string_view prefix) {
-        using infrastructure::file_storage::FileStorage;
+void initializeFileStoragePrefix(std::string_view prefix) {
+    using infrastructure::file_storage::FileStorage;
 
-        if (prefix.size() + 16 + 1 > FileStorage::m_pathBuf.size()) {
-            throw std::runtime_error("file storage prefix is too long");
-        }
-
-        std::fill(FileStorage::m_pathBuf.begin(), FileStorage::m_pathBuf.end(), '\0');
-        std::copy(prefix.begin(), prefix.end(), FileStorage::m_pathBuf.begin());
-        FileStorage::m_prefixLen = prefix.size();
+    if (prefix.size() + 16 + 1 > FileStorage::m_pathBuf.size()) {
+        throw std::runtime_error("file storage prefix is too long");
     }
 
+    std::fill(FileStorage::m_pathBuf.begin(), FileStorage::m_pathBuf.end(), '\0');
+    std::copy(prefix.begin(), prefix.end(), FileStorage::m_pathBuf.begin());
+    FileStorage::m_prefixLen = prefix.size();
 }
+
+}  // namespace
 
 int main() {
     try {
@@ -103,9 +101,10 @@ int main() {
         infrastructure::repositories::FileAclRepository fileAclRepository;
         infrastructure::repositories::FileLockRepository fileLockRepository;
 
-        domain::services::UserService userService{database, userRepository};
+        domain::services::UserService userService{database, userRepository, groupRepository, userGroupRepository};
         domain::services::GroupService groupService{database, groupRepository, userGroupRepository};
-        domain::services::FileService fileService{database, fileRepository, fileVersionRepository};
+        domain::services::FileService fileService{database,       fileRepository,  fileVersionRepository,
+                                                  userRepository, groupRepository, fileAclRepository};
         domain::services::FileContentService fileContentService;
         domain::services::FileVersionService fileVersionService{database, fileRepository, fileVersionRepository};
         domain::services::FileAclService fileAclService{database, fileAclRepository, userGroupRepository};
@@ -113,7 +112,6 @@ int main() {
 
         infrastructure::security::AuthTokenStore tokenStore;
         infrastructure::http::ActiveSessionRegistry sessionRegistry;
-
 
         domain::notifications::NotificationEventBus notificationEventBus;
         domain::notifications::NotificationPublisher notificationPublisher{notificationEventBus};
@@ -123,15 +121,22 @@ int main() {
         infrastructure::http::Router router;
 
         presentation::http::AuthController authController{userService, tokenStore, appThreadPool};
-        presentation::http::GroupController groupController{groupService, tokenStore, appThreadPool, notificationPublisher};
+        presentation::http::UserController userController{userService, tokenStore, appThreadPool};
+        presentation::http::GroupController groupController{groupService, tokenStore, appThreadPool,
+                                                            notificationPublisher};
         presentation::http::FileAclController fileAclController{fileAclService, tokenStore, appThreadPool};
-        presentation::http::FileLockController fileLockController{fileLockService, tokenStore, appThreadPool, notificationPublisher};
-        presentation::http::FileController fileController{fileService, fileContentService, fileAclService, tokenStore, appThreadPool, notificationPublisher};
-        presentation::http::FileVersionController fileVersionController{fileVersionService, fileContentService, fileAclService, tokenStore, appThreadPool};
-        presentation::http::FileContentController fileContentController{fileVersionService, fileContentService, fileAclService, tokenStore, appThreadPool};
+        presentation::http::FileLockController fileLockController{fileLockService, tokenStore, appThreadPool,
+                                                                  notificationPublisher};
+        presentation::http::FileController fileController{fileService, fileContentService, fileAclService,
+                                                          tokenStore,  appThreadPool,      notificationPublisher};
+        presentation::http::FileVersionController fileVersionController{fileVersionService, fileContentService,
+                                                                        fileAclService, tokenStore, appThreadPool};
+        presentation::http::FileContentController fileContentController{fileVersionService, fileContentService,
+                                                                        fileAclService, tokenStore, appThreadPool};
         presentation::http::NotificationController notificationController{sessionRegistry, tokenStore};
 
         authController.registerRoutes(router);
+        userController.registerRoutes(router);
         groupController.registerRoutes(router);
         fileAclController.registerRoutes(router);
         fileLockController.registerRoutes(router);
@@ -140,16 +145,10 @@ int main() {
         fileContentController.registerRoutes(router);
         notificationController.registerRoutes(router);
 
-        auto listener = std::make_shared<infrastructure::http::Listener>(
-            ioc,
-            tcp::endpoint{tcp::v4(), 8080},
-            router
-        );
+        auto listener = std::make_shared<infrastructure::http::Listener>(ioc, tcp::endpoint{tcp::v4(), 8080}, router);
 
         net::signal_set signals(ioc, SIGINT, SIGTERM);
-        signals.async_wait([&](const boost::system::error_code&, int) {
-            ioc.stop();
-        });
+        signals.async_wait([&](const boost::system::error_code&, int) { ioc.stop(); });
 
         listener->run();
 
@@ -161,9 +160,7 @@ int main() {
         ioWorkers.reserve(ioThreads > 1 ? ioThreads - 1 : 0);
 
         for (unsigned i = 1; i < ioThreads; ++i) {
-            ioWorkers.emplace_back([&ioc] {
-                ioc.run();
-            });
+            ioWorkers.emplace_back([&ioc] { ioc.run(); });
         }
 
         ioc.run();

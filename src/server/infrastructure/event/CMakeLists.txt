@@ -1,3 +1,7 @@
+if(POLICY CMP0167)
+  cmake_policy(SET CMP0167 NEW)
+endif()
+
 find_package(Boost REQUIRED)
 
 add_library(server_infrastructure_event INTERFACE)
