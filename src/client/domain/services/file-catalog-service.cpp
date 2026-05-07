@@ -1,5 +1,6 @@
 #include "file-catalog-service.h"
 
+#include "domain/models/user-profile.h"
 #include "infrastructure/api/file-acl-api.h"
 
 #include <algorithm>
@@ -11,6 +12,7 @@ namespace {
     using RemoteFile = client::domain::models::RemoteFile;
     using FileLock = client::domain::models::FileLock;
     using UserFileAcl = client::domain::models::UserFileAcl;
+    using UserProfile = client::domain::models::UserProfile;
 }
 
 namespace client::domain::services {
@@ -127,7 +129,7 @@ namespace client::domain::services {
 
         auto state = std::make_shared<FileHydrationState>();
         state->files = std::move(*result);
-        state->pending = state->files.size() * 2;
+        state->pending = state->files.size() * 3;
         state->callback = std::move(callback);
 
         if (state->pending == 0) {
@@ -137,9 +139,32 @@ namespace client::domain::services {
         }
 
         for (const auto& file : state->files) {
+            requestCreatorHydration(file.id, file.createdBy, state);
             requestAclHydration(file.id, currentUserId, state);
             requestLockHydration(file.id, state);
         }
+    }
+
+    void FileCatalogService::requestCreatorHydration(qint64 fileId,
+                                                     qint64 userId,
+                                                     std::shared_ptr<FileHydrationState> state) {
+        QPointer<QObject> internalContext{&m_internalContext};
+        auto* service = this;
+
+        m_networkWorker.run([fileId, userId, state, internalContext, service](RemoteApiGateway& gateway) mutable {
+            gateway.userApi().getById(userId, [fileId, state, internalContext, service](ApiResult<UserProfile> result) mutable {
+                ::client::application::postTask(internalContext,
+                                      [fileId, state, service, result = std::move(result)]() mutable {
+                                          if (result) {
+                                              if (auto* file = FileCatalogService::findFile(state->files, fileId)) {
+                                                  file->createdByLogin = result->login;
+                                              }
+                                          }
+
+                                          service->finishFileHydration(state);
+                                      });
+            });
+        });
     }
 
     void FileCatalogService::requestAclHydration(qint64 fileId,
@@ -172,23 +197,37 @@ namespace client::domain::services {
         auto* service = this;
 
         m_networkWorker.run([fileId, state, internalContext, service](RemoteApiGateway& gateway) mutable {
-            gateway.lockApi().getActive(fileId, [fileId, state, internalContext, service](ApiResult<FileLock> result) mutable {
-                ::client::application::postTask(internalContext,
-                                      [fileId, state, service, result = std::move(result)]() mutable {
+            auto* gatewayPtr = &gateway;
+            gateway.lockApi().getActive(fileId, [fileId, state, internalContext, service, gatewayPtr](ApiResult<FileLock> result) mutable {
+                if (!result) {
+                    ::client::application::postTask(internalContext,
+                                      [fileId, state, service]() mutable {
                                           if (auto* file = FileCatalogService::findFile(state->files, fileId)) {
-                                              if (result) {
-                                                  file->hasActiveLock = true;
-                                                  file->lockedByUserId = result->userId;
-                                                  file->lockLeaseUntil = result->leaseUntil;
-                                              } else {
-                                                  file->hasActiveLock = false;
-                                                  file->lockedByUserId.reset();
-                                                  file->lockLeaseUntil.reset();
-                                              }
+                                              file->hasActiveLock = false;
+                                              file->lockedByUserId.reset();
+                                              file->lockedByLogin.reset();
+                                              file->lockLeaseUntil.reset();
                                           }
 
                                           service->finishFileHydration(state);
                                       });
+                    return;
+                }
+
+                const auto lock = *result;
+                gatewayPtr->userApi().getById(lock.userId, [fileId, lock, state, internalContext, service](ApiResult<UserProfile> userResult) mutable {
+                    ::client::application::postTask(internalContext,
+                                      [fileId, lock, state, service, userResult = std::move(userResult)]() mutable {
+                                          if (auto* file = FileCatalogService::findFile(state->files, fileId)) {
+                                              file->hasActiveLock = true;
+                                              file->lockedByUserId = lock.userId;
+                                              file->lockedByLogin = userResult ? std::optional<QString>{userResult->login} : std::nullopt;
+                                              file->lockLeaseUntil = lock.leaseUntil;
+                                          }
+
+                                          service->finishFileHydration(state);
+                                      });
+                });
             });
         });
     }

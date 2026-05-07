@@ -9,6 +9,7 @@
 #include "file-version-api.h"
 #include "group-api.h"
 #include "notification-stream-client.h"
+#include "user-api.h"
 
 #include <QUrl>
 
@@ -20,6 +21,7 @@ namespace client::infrastructure::api {
 
             ApiClient m_apiClient;
             AuthApi m_authApi;
+            UserApi m_userApi;
             FileApi m_fileApi;
             FileContentApi m_contentApi;
             FileLockApi m_lockApi;
@@ -40,6 +42,7 @@ namespace client::infrastructure::api {
             void clearBearerToken();
 
             AuthApi& authApi() noexcept;
+            UserApi& userApi() noexcept;
             FileApi& fileApi() noexcept;
             FileContentApi& contentApi() noexcept;
             FileLockApi& lockApi() noexcept;

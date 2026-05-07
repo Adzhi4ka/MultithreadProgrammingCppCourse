@@ -49,6 +49,7 @@ namespace client::domain::services {
                                               if (auto file = fileRepository->findById(fileId)) {
                                                   file->hasActiveLock = true;
                                                   file->lockedByUserId = result->userId;
+                                                  file->lockedByLogin.reset();
                                                   file->lockLeaseUntil = result->leaseUntil;
                                                   fileRepository->upsert(std::move(*file));
                                               }
@@ -88,6 +89,7 @@ namespace client::domain::services {
                                               if (auto file = fileRepository->findById(fileId)) {
                                                   file->hasActiveLock = false;
                                                   file->lockedByUserId.reset();
+                                                  file->lockedByLogin.reset();
                                                   file->lockLeaseUntil.reset();
                                                   fileRepository->upsert(std::move(*file));
                                               }

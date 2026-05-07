@@ -16,10 +16,12 @@
 #include <QLineEdit>
 #include <QListWidget>
 #include <QMenu>
+#include <QMenuBar>
 #include <QMessageBox>
 #include <QPushButton>
 #include <QSplitter>
 #include <QStatusBar>
+#include <QToolBar>
 #include <QVBoxLayout>
 
 #include <algorithm>
@@ -50,6 +52,7 @@ namespace client::presentation {
                 editor->close();
             }
         }
+
         m_editorWindows.clear();
         m_runtime.stopNotifications();
 
@@ -60,8 +63,14 @@ namespace client::presentation {
         setWindowTitle(QStringLiteral("File Storage Client — %1").arg(m_session.login));
         resize(1200, 720);
 
+        buildActions();
+        buildMenuBar();
+
         m_fileTree = new FileTreeWidget(this);
+        m_fileTree->setObjectName(QStringLiteral("fileTree"));
+
         m_infoPanel = new FileInfoWidget(this);
+        m_infoPanel->setObjectName(QStringLiteral("infoPanel"));
 
         auto* rightPanel = new QWidget(this);
         auto* rightLayout = new QVBoxLayout(rightPanel);
@@ -76,15 +85,40 @@ namespace client::presentation {
         setCentralWidget(splitter);
 
         m_statusLabel = new QLabel(this);
+        m_statusLabel->setObjectName(QStringLiteral("statusLabel"));
         statusBar()->addPermanentWidget(m_statusLabel, 1);
 
         connect(m_fileTree, &FileTreeWidget::selectedFileChanged, this, [this]() {
             m_infoPanel->setFile(m_fileTree->selectedFile());
         });
+
         connect(m_fileTree, &FileTreeWidget::fileActivated, this, [this](qint64) {
             openSelectedReadOnly();
         });
-        connect(m_fileTree, &QWidget::customContextMenuRequested, this, &MainWindow::showFileContextMenu);
+
+        connect(m_fileTree,
+                &QWidget::customContextMenuRequested,
+                this,
+                &MainWindow::showFileContextMenu);
+    }
+
+    void MainWindow::buildActions() {
+        m_showGroupsAction = new QAction(QStringLiteral("Groups / users"), this);
+        m_showGroupsAction->setObjectName(QStringLiteral("showGroupsAction"));
+
+        m_logoutAction = new QAction(QStringLiteral("Logout"), this);
+        m_logoutAction->setObjectName(QStringLiteral("logoutAction"));
+
+        connect(m_showGroupsAction, &QAction::triggered, this, &MainWindow::showGroups);
+        connect(m_logoutAction, &QAction::triggered, this, &MainWindow::logout);
+    }
+
+    void MainWindow::buildMenuBar() {
+        auto* accountMenu = menuBar()->addMenu(QStringLiteral("Account"));
+        accountMenu->addAction(m_logoutAction);
+
+        auto* groupsMenu = menuBar()->addMenu(QStringLiteral("Groups"));
+        groupsMenu->addAction(m_showGroupsAction);
     }
 
     void MainWindow::connectRuntimeSignals() {
@@ -109,7 +143,8 @@ namespace client::presentation {
 
         const auto file = selectedFile();
 
-        QMenu menu{this};
+        QMenu menu(this);
+
         if (file) {
             menu.addAction(QStringLiteral("Open readonly"), this, &MainWindow::openSelectedReadOnly);
 
@@ -125,9 +160,6 @@ namespace client::presentation {
 
         menu.addAction(QStringLiteral("Refresh"), this, &MainWindow::refreshFiles);
         menu.addAction(QStringLiteral("Create file"), this, &MainWindow::createFile);
-        menu.addSeparator();
-        menu.addAction(QStringLiteral("Groups / users"), this, &MainWindow::showGroups);
-        menu.addAction(QStringLiteral("Logout"), this, &MainWindow::logout);
 
         menu.exec(m_fileTree->viewport()->mapToGlobal(position));
     }
@@ -221,6 +253,7 @@ namespace client::presentation {
 
         m_pendingEditFile = file;
         m_pendingEditLock.reset();
+
         m_statusLabel->setText(QStringLiteral("Acquiring lock..."));
         m_runtime.acquireLock(file->id, LockDurationSec);
     }
@@ -232,18 +265,20 @@ namespace client::presentation {
         }
 
         m_pendingVersionsFileId = file->id;
+
         m_statusLabel->setText(QStringLiteral("Loading versions..."));
         m_runtime.loadVersions(file->id);
     }
 
     void MainWindow::openVersion(qint64 versionId) {
         m_pendingVersionId = versionId;
+
         m_statusLabel->setText(QStringLiteral("Downloading version..."));
         m_runtime.downloadVersion(versionId);
     }
 
     void MainWindow::showGroups() {
-        GroupManagementDialog dialog{m_runtime, m_session, this};
+        GroupManagementDialog dialog(m_runtime, m_session, this);
         dialog.exec();
     }
 
@@ -254,6 +289,7 @@ namespace client::presentation {
                 editor->close();
             }
         }
+
         m_editorWindows.clear();
 
         m_runtime.logout();
@@ -308,8 +344,10 @@ namespace client::presentation {
     void MainWindow::handleCurrentDownloaded(qint64 fileId, ApiResult<QByteArray> result) {
         if (m_pendingEditFile && m_pendingEditFile->id == fileId && m_pendingEditLock) {
             m_statusLabel->clear();
+
             const auto file = *m_pendingEditFile;
             const auto lock = *m_pendingEditLock;
+
             m_pendingEditFile.reset();
             m_pendingEditLock.reset();
 
@@ -326,6 +364,7 @@ namespace client::presentation {
                                                         std::move(*result));
             registerEditor(editor);
             editor->show();
+
             refreshFiles();
             return;
         }
@@ -335,6 +374,7 @@ namespace client::presentation {
         }
 
         m_statusLabel->clear();
+
         const auto file = *m_pendingReadOnlyFile;
         m_pendingReadOnlyFile.reset();
 
@@ -356,12 +396,14 @@ namespace client::presentation {
         if (!result) {
             m_pendingEditFile.reset();
             m_pendingEditLock.reset();
+
             m_statusLabel->clear();
             showApiError(QStringLiteral("Failed to acquire file lock"), result.error());
             return;
         }
 
         m_pendingEditLock = *result;
+
         m_statusLabel->setText(QStringLiteral("Downloading file..."));
         m_runtime.downloadCurrent(fileId);
     }
@@ -370,6 +412,7 @@ namespace client::presentation {
         if (!m_pendingVersionsFileId || *m_pendingVersionsFileId != fileId) {
             return;
         }
+
         m_pendingVersionsFileId.reset();
         m_statusLabel->clear();
 
@@ -387,11 +430,13 @@ namespace client::presentation {
             auto* item = new QListWidgetItem(QStringLiteral("v%1 | id=%2 | %3")
                                                  .arg(version.version)
                                                  .arg(version.id)
-                                                 .arg(formatUnixSeconds(version.createdAt)), list);
+                                                 .arg(formatUnixSeconds(version.createdAt)),
+                                             list);
             item->setData(Qt::UserRole, version.id);
         }
 
         auto* buttons = new QDialogButtonBox(QDialogButtonBox::Open | QDialogButtonBox::Close, &dialog);
+
         auto* layout = new QVBoxLayout(&dialog);
         layout->addWidget(list);
         layout->addWidget(buttons);
@@ -402,6 +447,7 @@ namespace client::presentation {
                 dialog.accept();
             }
         });
+
         connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
 
         dialog.exec();
@@ -411,6 +457,7 @@ namespace client::presentation {
         if (!m_pendingVersionId || *m_pendingVersionId != versionId) {
             return;
         }
+
         m_pendingVersionId.reset();
         m_statusLabel->clear();
 
@@ -452,6 +499,7 @@ namespace client::presentation {
 
     void MainWindow::registerEditor(EditorWindow* window) {
         m_editorWindows.push_back(QPointer<EditorWindow>{window});
+
         connect(window, &QObject::destroyed, this, [this, window]() {
             m_editorWindows.erase(std::remove_if(m_editorWindows.begin(),
                                                  m_editorWindows.end(),
@@ -459,14 +507,18 @@ namespace client::presentation {
                                                      return current.isNull() || current.data() == window;
                                                  }),
                                   m_editorWindows.end());
+
             refreshFiles();
         });
     }
 
     void MainWindow::showApiError(const QString& title, const ApiError& error) {
         const auto message = QStringLiteral("%1%2")
-            .arg(error.httpStatus > 0 ? QStringLiteral("HTTP %1: ").arg(error.httpStatus) : QStringLiteral("Network error: "))
+            .arg(error.httpStatus > 0
+                     ? QStringLiteral("HTTP %1: ").arg(error.httpStatus)
+                     : QStringLiteral("Network error: "))
             .arg(error.message.isEmpty() ? QStringLiteral("unknown error") : error.message);
+
         QMessageBox::warning(this, title, message);
     }
 

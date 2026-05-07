@@ -32,6 +32,7 @@
 #include "presentation/http/file-lock-controller.h"
 #include "presentation/http/group-controller.h"
 #include "presentation/http/notification-controller.h"
+#include "presentation/http/user-controller.h"
 #include "presentation/http/sse-notification-bridge.h"
 
 #include <boost/asio/io_context.hpp>
@@ -123,6 +124,7 @@ int main() {
         infrastructure::http::Router router;
 
         presentation::http::AuthController authController{userService, tokenStore, appThreadPool};
+        presentation::http::UserController userController{userService, tokenStore, appThreadPool};
         presentation::http::GroupController groupController{groupService, tokenStore, appThreadPool, notificationPublisher};
         presentation::http::FileAclController fileAclController{fileAclService, tokenStore, appThreadPool};
         presentation::http::FileLockController fileLockController{fileLockService, tokenStore, appThreadPool, notificationPublisher};
@@ -132,6 +134,7 @@ int main() {
         presentation::http::NotificationController notificationController{sessionRegistry, tokenStore};
 
         authController.registerRoutes(router);
+        userController.registerRoutes(router);
         groupController.registerRoutes(router);
         fileAclController.registerRoutes(router);
         fileLockController.registerRoutes(router);

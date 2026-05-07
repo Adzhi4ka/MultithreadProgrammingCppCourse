@@ -10,6 +10,8 @@
 #include <cstdint>
 #include <string>
 
+#include "domain/models/user.h"
+
 namespace domain::services {
 
     class UserService {
@@ -18,6 +20,8 @@ namespace domain::services {
             using UserRepository = infrastructure::repositories::UserRepository;
             using GroupRepository = infrastructure::repositories::GroupRepository;
             using UserGroupRepository = infrastructure::repositories::UserGroupRepository;
+
+            using User = domain::models::User;
 
             SqliteDatabase& m_database;
             UserRepository& m_userRepo;
@@ -34,6 +38,9 @@ namespace domain::services {
             ServiceResult<int64_t> login(const std::string& login, const std::string& rawPassword);
 
             ServiceResult<int64_t> addUser(std::string login, std::string rawPassword);
+
+            ServiceResult<User> getById(int64_t userId);
+            ServiceResult<User> getByLogin(const std::string& login);
 
     };
 

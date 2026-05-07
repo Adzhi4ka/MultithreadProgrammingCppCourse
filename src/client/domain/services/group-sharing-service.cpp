@@ -13,6 +13,13 @@ namespace client::domain::services {
         std::shared_ptr<std::function<void(ApiResult<std::vector<Group>>)>> callback;
     };
 
+    struct GroupSharingService::UserLoadState {
+        qint64 groupId = 0;
+        std::vector<UserProfile> users;
+        int pending = 0;
+        std::shared_ptr<std::function<void(ApiResult<std::vector<UserProfile>>)>> callback;
+    };
+
     GroupSharingService::GroupSharingService(application::NetworkWorker& networkWorker,
                                              QObject& internalContext,
                                              QObject& uiContext,
@@ -35,53 +42,57 @@ namespace client::domain::services {
         });
     }
 
-    void GroupSharingService::loadGroupUsers(qint64 groupId, std::function<void(ApiResult<std::vector<qint64>>)> callback) {
-        auto cb = std::make_shared<std::function<void(ApiResult<std::vector<qint64>>)>>(std::move(callback));
+    void GroupSharingService::loadGroupUsers(qint64 groupId, std::function<void(ApiResult<std::vector<UserProfile>>)> callback) {
+        auto cb = std::make_shared<std::function<void(ApiResult<std::vector<UserProfile>>)>>(std::move(callback));
         QPointer<QObject> internalContext{&m_internalContext};
-        QPointer<QObject> uiContext{&m_uiContext};
-        auto* groupRepository = &m_groupRepository;
+        auto* service = this;
 
-        m_networkWorker.run([groupId,
-                             internalContext,
-                             uiContext,
-                             cb,
-                             groupRepository](RemoteApiGateway& gateway) mutable {
-            gateway.groupApi().getGroupUsers(groupId, [groupId, internalContext, uiContext, cb, groupRepository](ApiResult<std::vector<qint64>> result) mutable {
+        m_networkWorker.run([groupId, internalContext, cb, service](RemoteApiGateway& gateway) mutable {
+            gateway.groupApi().getGroupUsers(groupId, [groupId, internalContext, cb, service](ApiResult<std::vector<qint64>> result) mutable {
                 ::client::application::postTask(internalContext,
-                                      [groupId, uiContext, cb, groupRepository, result = std::move(result)]() mutable {
-                                          if (result) {
-                                              groupRepository->replaceGroupUsers(groupId, *result);
-                                          }
-
-                                          ::client::application::postResult(uiContext, cb, std::move(result));
+                                      [groupId, cb, service, result = std::move(result)]() mutable {
+                                          service->loadUsersByIds(groupId, std::move(result), std::move(cb));
                                       });
             });
         });
     }
 
-    void GroupSharingService::addUserToGroup(qint64 userId, qint64 groupId, std::function<void(ApiResult<void>)> callback) {
+    void GroupSharingService::addUserToGroup(QString login, qint64 groupId, std::function<void(ApiResult<void>)> callback) {
         auto cb = std::make_shared<std::function<void(ApiResult<void>)>>(std::move(callback));
         QPointer<QObject> internalContext{&m_internalContext};
         QPointer<QObject> uiContext{&m_uiContext};
         auto* groupRepository = &m_groupRepository;
 
-        m_networkWorker.run([userId,
+        m_networkWorker.run([login = std::move(login),
                              groupId,
                              internalContext,
                              uiContext,
                              cb,
                              groupRepository](RemoteApiGateway& gateway) mutable {
-            gateway.groupApi().addUser(userId, groupId, [userId, groupId, internalContext, uiContext, cb, groupRepository](ApiResult<void> result) mutable {
-                ::client::application::postTask(internalContext,
-                                      [userId, groupId, uiContext, cb, groupRepository, result = std::move(result)]() mutable {
-                                          if (result) {
-                                              auto users = groupRepository->groupUsers(groupId);
-                                              users.emplace_back(userId);
-                                              groupRepository->replaceGroupUsers(groupId, std::move(users));
-                                          }
+            auto* gatewayPtr = &gateway;
+            gateway.userApi().getByLogin(login, [groupId, internalContext, uiContext, cb, groupRepository, gatewayPtr](ApiResult<UserProfile> userResult) mutable {
+                if (!userResult) {
+                    ::client::application::postTask(internalContext,
+                                          [uiContext, cb, userResult = std::move(userResult)]() mutable {
+                                              ::client::application::postResult(uiContext, cb, ApiResult<void>{std::unexpected(userResult.error())});
+                                          });
+                    return;
+                }
 
-                                          ::client::application::postResult(uiContext, cb, std::move(result));
-                                      });
+                const auto user = *userResult;
+                gatewayPtr->groupApi().addUser(user.userId, groupId, [user, groupId, internalContext, uiContext, cb, groupRepository](ApiResult<void> result) mutable {
+                    ::client::application::postTask(internalContext,
+                                          [user, groupId, uiContext, cb, groupRepository, result = std::move(result)]() mutable {
+                                              if (result) {
+                                                  auto users = groupRepository->groupUsers(groupId);
+                                                  users.emplace_back(user);
+                                                  groupRepository->upsertUser(user);
+                                                  groupRepository->replaceGroupUsers(groupId, std::move(users));
+                                              }
+
+                                              ::client::application::postResult(uiContext, cb, std::move(result));
+                                          });
+                });
             });
         });
     }
@@ -103,7 +114,9 @@ namespace client::domain::services {
                                       [userId, groupId, uiContext, cb, groupRepository, result = std::move(result)]() mutable {
                                           if (result) {
                                               auto users = groupRepository->groupUsers(groupId);
-                                              users.erase(std::remove(users.begin(), users.end(), userId), users.end());
+                                              users.erase(std::remove_if(users.begin(), users.end(), [userId](const auto& user) {
+                                                  return user.userId == userId;
+                                              }), users.end());
                                               groupRepository->replaceGroupUsers(groupId, std::move(users));
                                           }
 
@@ -147,7 +160,9 @@ namespace client::domain::services {
                                               }
 
                                               groupRepository->upsertGroup(group);
-                                              groupRepository->replaceGroupUsers(group.id, {currentUserId});
+                                              if (auto currentUser = groupRepository->findUser(currentUserId)) {
+                                                  groupRepository->replaceGroupUsers(group.id, {*currentUser});
+                                              }
                                               ::client::application::postResult(uiContext, cb, apiSuccess(group));
                                           });
                 });
@@ -189,7 +204,7 @@ namespace client::domain::services {
                                           if (result) {
                                               state->groups.emplace_back(std::move(*result));
                                           } else {
-                                              state->groups.emplace_back(Group{.id = groupId, .name = QStringLiteral("#%1").arg(groupId)});
+                                              state->groups.emplace_back(Group{.id = groupId, .name = QStringLiteral("unknown group")});
                                           }
 
                                           --state->pending;
@@ -203,6 +218,57 @@ namespace client::domain::services {
 
                                           service->m_groupRepository.replaceGroups(state->groups);
                                           service->postUi(state->callback, apiSuccess(service->m_groupRepository.groups()));
+                                      });
+            });
+        });
+    }
+
+    void GroupSharingService::loadUsersByIds(qint64 groupId,
+                                             ApiResult<std::vector<qint64>> idsResult,
+                                             std::shared_ptr<std::function<void(ApiResult<std::vector<UserProfile>>)>> callback) {
+        if (!idsResult) {
+            postUi(std::move(callback), ApiResult<std::vector<UserProfile>>{std::unexpected(idsResult.error())});
+            return;
+        }
+
+        auto state = std::make_shared<UserLoadState>();
+        state->groupId = groupId;
+        state->pending = idsResult->size();
+        state->users.reserve(idsResult->size());
+        state->callback = std::move(callback);
+
+        if (state->pending == 0) {
+            m_groupRepository.replaceGroupUsers(groupId, {});
+            postUi(state->callback, apiSuccess(m_groupRepository.groupUsers(groupId)));
+            return;
+        }
+
+        for (const auto userId : *idsResult) {
+            requestUser(groupId, userId, state);
+        }
+    }
+
+    void GroupSharingService::requestUser(qint64 groupId, qint64 userId, std::shared_ptr<UserLoadState> state) {
+        QPointer<QObject> internalContext{&m_internalContext};
+        auto* service = this;
+
+        m_networkWorker.run([groupId, userId, state, internalContext, service](RemoteApiGateway& gateway) mutable {
+            gateway.userApi().getById(userId, [groupId, userId, state, internalContext, service](ApiResult<UserProfile> result) mutable {
+                ::client::application::postTask(internalContext,
+                                      [groupId, userId, state, service, result = std::move(result)]() mutable {
+                                          if (result) {
+                                              state->users.emplace_back(std::move(*result));
+                                          } else {
+                                              state->users.emplace_back(UserProfile{.userId = userId, .login = QStringLiteral("unknown user")});
+                                          }
+
+                                          --state->pending;
+                                          if (state->pending > 0) {
+                                              return;
+                                          }
+
+                                          service->m_groupRepository.replaceGroupUsers(groupId, std::move(state->users));
+                                          service->postUi(state->callback, apiSuccess(service->m_groupRepository.groupUsers(groupId)));
                                       });
             });
         });

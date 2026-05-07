@@ -57,16 +57,20 @@ namespace client::presentation {
         toolbar->setMovable(false);
 
         m_saveButton = new QPushButton(QStringLiteral("Save"), this);
+        m_saveButton->setObjectName(QStringLiteral("saveButton"));
         m_releaseButton = new QPushButton(QStringLiteral("Release lock"), this);
+        m_releaseButton->setObjectName(QStringLiteral("releaseButton"));
         toolbar->addWidget(m_saveButton);
         toolbar->addWidget(m_releaseButton);
 
         m_editor = new QTextEdit(this);
+        m_editor->setObjectName(QStringLiteral("editor"));
         m_editor->setPlainText(QString::fromUtf8(content));
         m_editor->setReadOnly(!m_lockToken.has_value());
         setCentralWidget(m_editor);
 
         m_statusLabel = new QLabel(this);
+        m_statusLabel->setObjectName(QStringLiteral("statusLabel"));
         statusBar()->addPermanentWidget(m_statusLabel, 1);
 
         m_saveButton->setEnabled(m_lockToken.has_value());

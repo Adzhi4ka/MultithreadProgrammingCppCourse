@@ -37,12 +37,12 @@ namespace client::presentation {
             .arg(file->id)
             .arg(file->currentVersionId)
             .arg(file->maxVersionCount)
-            .arg(file->createdBy)
+            .arg(file->createdByLogin.isEmpty() ? QStringLiteral("unknown user") : file->createdByLogin)
             .arg(formatUnixSeconds(file->createdAt))
             .arg(aclToText(file->aclLevel))
             .arg(file->hasActiveLock
                      ? QStringLiteral("locked by %1 until %2")
-                           .arg(file->lockedByUserId.value_or(0))
+                           .arg(file->lockedByLogin.value_or(QStringLiteral("unknown user")))
                            .arg(formatUnixSeconds(file->lockLeaseUntil.value_or(0)))
                      : QStringLiteral("free")));
     }

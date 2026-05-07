@@ -2,6 +2,7 @@ add_library(client_infrastructure_api STATIC
     api-client.cpp
     json-utils.cpp
     auth-api.cpp
+    user-api.cpp
     file-api.cpp
     file-content-api.cpp
     file-lock-api.cpp

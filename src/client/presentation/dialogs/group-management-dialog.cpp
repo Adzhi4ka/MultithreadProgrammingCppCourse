@@ -39,8 +39,8 @@ namespace client::presentation {
 
         m_groupList = new QListWidget(this);
         m_userList = new QListWidget(this);
-        m_targetUserIdEdit = new QLineEdit(this);
-        m_targetUserIdEdit->setPlaceholderText(QStringLiteral("Target user id"));
+        m_targetLoginEdit = new QLineEdit(this);
+        m_targetLoginEdit->setPlaceholderText(QStringLiteral("Target user login"));
         m_statusLabel = new QLabel(this);
         m_statusLabel->setWordWrap(true);
 
@@ -57,11 +57,11 @@ namespace client::presentation {
 
         auto* rightPanel = new QWidget(this);
         auto* rightLayout = new QVBoxLayout(rightPanel);
-        rightLayout->addWidget(new QLabel(QStringLiteral("Users in selected group (ids)"), this));
+        rightLayout->addWidget(new QLabel(QStringLiteral("Users in selected group"), this));
         rightLayout->addWidget(m_userList, 1);
 
         auto* userForm = new QFormLayout;
-        userForm->addRow(QStringLiteral("User id"), m_targetUserIdEdit);
+        userForm->addRow(QStringLiteral("Login"), m_targetLoginEdit);
         rightLayout->addLayout(userForm);
         rightLayout->addWidget(m_addUserButton);
         rightLayout->addWidget(m_removeUserButton);
@@ -126,16 +126,15 @@ namespace client::presentation {
             return;
         }
 
-        bool ok = false;
-        const auto userId = m_targetUserIdEdit->text().trimmed().toLongLong(&ok);
-        if (!ok || userId <= 0) {
-            QMessageBox::warning(this, QStringLiteral("Invalid user id"), QStringLiteral("Enter numeric user id"));
+        const auto login = m_targetLoginEdit->text().trimmed();
+        if (login.isEmpty()) {
+            QMessageBox::warning(this, QStringLiteral("Invalid login"), QStringLiteral("Enter user login"));
             return;
         }
 
         setBusy(true);
         m_statusLabel->setText(QStringLiteral("Adding user..."));
-        m_runtime.addUserToGroup(userId, *groupId);
+        m_runtime.addUserToGroup(login, *groupId);
     }
 
     void GroupManagementDialog::removeSelectedUserFromGroup() {
@@ -203,7 +202,7 @@ namespace client::presentation {
         }
     }
 
-    void GroupManagementDialog::handleGroupUsersLoaded(qint64 groupId, ApiResult<std::vector<qint64>> result) {
+    void GroupManagementDialog::handleGroupUsersLoaded(qint64 groupId, ApiResult<std::vector<domain::models::UserProfile>> result) {
         const auto selected = selectedGroupId();
         if (!selected || *selected != groupId) {
             return;
@@ -218,15 +217,15 @@ namespace client::presentation {
         }
 
         m_userList->clear();
-        for (const auto userId : *result) {
-            auto* item = new QListWidgetItem(QStringLiteral("userId=%1").arg(userId), m_userList);
-            item->setData(UserIdRole, userId);
+        for (const auto& user : *result) {
+            auto* item = new QListWidgetItem(user.login, m_userList);
+            item->setData(UserIdRole, user.userId);
         }
 
         m_statusLabel->setText(QStringLiteral("Loaded %1 users").arg(result->size()));
     }
 
-    void GroupManagementDialog::handleUserAddedToGroup(qint64, qint64 groupId, ApiResult<void> result) {
+    void GroupManagementDialog::handleUserAddedToGroup(QString, qint64 groupId, ApiResult<void> result) {
         const auto selected = selectedGroupId();
         if (!selected || *selected != groupId) {
             return;
@@ -299,7 +298,7 @@ namespace client::presentation {
         m_removeUserButton->setEnabled(!busy);
         m_groupList->setEnabled(!busy);
         m_userList->setEnabled(!busy);
-        m_targetUserIdEdit->setEnabled(!busy);
+        m_targetLoginEdit->setEnabled(!busy);
     }
 
     void GroupManagementDialog::showApiError(const QString& title, const ApiError& error) {

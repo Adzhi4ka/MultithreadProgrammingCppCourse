@@ -15,9 +15,10 @@
 #include <optional>
 #include <vector>
 
+class QAction;
+class QCloseEvent;
 class QLabel;
 class QPoint;
-class QSplitter;
 
 namespace client::presentation {
 
@@ -31,6 +32,9 @@ namespace client::presentation {
 
             application::ClientRuntime& m_runtime;
             domain::models::UserSession m_session;
+
+            QAction* m_showGroupsAction = nullptr;
+            QAction* m_logoutAction = nullptr;
 
             FileTreeWidget* m_fileTree = nullptr;
             FileInfoWidget* m_infoPanel = nullptr;
@@ -77,6 +81,8 @@ namespace client::presentation {
             void closeEvent(QCloseEvent* event) override;
 
             void buildUi();
+            void buildActions();
+            void buildMenuBar();
             void connectRuntimeSignals();
             void showFileContextMenu(const QPoint& position);
 

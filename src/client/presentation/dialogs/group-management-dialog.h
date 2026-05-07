@@ -3,6 +3,7 @@
 #include "application/client-runtime.h"
 #include "domain/models/group.h"
 #include "domain/models/user-session.h"
+#include "domain/models/user-profile.h"
 
 #include <QDialog>
 #include <optional>
@@ -24,7 +25,7 @@ namespace client::presentation {
 
             QListWidget* m_groupList = nullptr;
             QListWidget* m_userList = nullptr;
-            QLineEdit* m_targetUserIdEdit = nullptr;
+            QLineEdit* m_targetLoginEdit = nullptr;
             QLabel* m_statusLabel = nullptr;
             QPushButton* m_refreshButton = nullptr;
             QPushButton* m_createGroupButton = nullptr;
@@ -44,8 +45,8 @@ namespace client::presentation {
             void createGroup();
 
             void handleCurrentUserGroupsLoaded(qint64 currentUserId, ApiResult<std::vector<domain::models::Group>> result);
-            void handleGroupUsersLoaded(qint64 groupId, ApiResult<std::vector<qint64>> result);
-            void handleUserAddedToGroup(qint64 userId, qint64 groupId, ApiResult<void> result);
+            void handleGroupUsersLoaded(qint64 groupId, ApiResult<std::vector<domain::models::UserProfile>> result);
+            void handleUserAddedToGroup(QString login, qint64 groupId, ApiResult<void> result);
             void handleUserRemovedFromGroup(qint64 userId, qint64 groupId, ApiResult<void> result);
             void handleGroupCreated(ApiResult<domain::models::Group> result);
 

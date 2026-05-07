@@ -8,6 +8,7 @@
 #include "domain/models/group.h"
 #include "domain/models/remote-file.h"
 #include "domain/models/user-session.h"
+#include "domain/models/user-profile.h"
 
 #include <QByteArray>
 #include <QJsonArray>
@@ -30,6 +31,7 @@ namespace client::infrastructure::api {
     ApiError makeHttpError(const RawApiResponse& response, QString fallbackMessage);
 
     domain::models::UserSession parseUserSession(const QJsonObject& object);
+    domain::models::UserProfile parseUserProfile(const QJsonObject& object);
     domain::models::RemoteFile parseRemoteFile(const QJsonObject& object);
     domain::models::FileVersion parseFileVersion(const QJsonObject& object);
     domain::models::FileLock parseFileLock(const QJsonObject& object);

@@ -22,6 +22,8 @@ namespace client::application {
             explicit NetworkWorker(QUrl baseUrl, QObject* parent = nullptr);
             ~NetworkWorker() override;
 
+            void shutdown();
+
             NetworkWorker(const NetworkWorker&) = delete;
             NetworkWorker& operator=(const NetworkWorker&) = delete;
 

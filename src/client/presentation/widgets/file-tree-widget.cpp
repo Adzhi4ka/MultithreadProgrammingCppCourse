@@ -116,9 +116,9 @@ namespace client::presentation {
         item->setText(0, parts.constLast());
         item->setText(1, aclToText(file.aclLevel));
         item->setText(2, file.hasActiveLock
-                            ? QStringLiteral("locked by %1").arg(file.lockedByUserId.value_or(0))
+                            ? QStringLiteral("locked by %1").arg(file.lockedByLogin.value_or(QStringLiteral("unknown user")))
                             : QStringLiteral("free"));
-        item->setText(3, QString::number(file.createdBy));
+        item->setText(3, file.createdByLogin.isEmpty() ? QStringLiteral("unknown user") : file.createdByLogin);
         item->setText(4, formatUnixSeconds(file.createdAt));
         item->setData(0, FileIdRole, file.id);
     }

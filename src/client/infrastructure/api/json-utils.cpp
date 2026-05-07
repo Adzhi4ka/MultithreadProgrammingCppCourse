@@ -115,6 +115,13 @@ namespace client::infrastructure::api {
         };
     }
 
+    domain::models::UserProfile parseUserProfile(const QJsonObject& object) {
+        return domain::models::UserProfile{
+            .userId = getInt64Field(object, u"userId").value_or(getInt64Field(object, u"id").value_or(0)),
+            .login = getStringField(object, u"login").value_or(QString{}),
+        };
+    }
+
     domain::models::RemoteFile parseRemoteFile(const QJsonObject& object) {
         return domain::models::RemoteFile{
             .id = getInt64Field(object, u"id").value_or(0),

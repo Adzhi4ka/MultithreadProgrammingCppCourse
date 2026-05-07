@@ -23,7 +23,7 @@ namespace presentation::http {
             }
         );
 
-        m_fileLockedConnection = eventBus.subscribe<domain::notifications::FileUnlockedEvent>(
+        m_fileUnlockedConnection = eventBus.subscribe<domain::notifications::FileUnlockedEvent>(
             [this](const domain::notifications::FileUnlockedEvent& event) {
                 onFileUnlocked(event);
             }

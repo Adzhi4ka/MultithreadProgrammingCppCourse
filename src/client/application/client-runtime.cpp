@@ -58,6 +58,16 @@ namespace client::application {
     }
 
     ClientRuntime::~ClientRuntime() {
+        if (m_internalContext && m_internalThread.isRunning()) {
+            QMetaObject::invokeMethod(m_internalContext,
+                                      [this]() {
+                                          if (m_notificationService) {
+                                              m_notificationService->stop();
+                                          }
+                                      },
+                                      Qt::BlockingQueuedConnection);
+        }
+
         m_internalThread.quit();
         m_internalThread.wait();
 
@@ -66,6 +76,17 @@ namespace client::application {
         m_fileWorkspaceService.reset();
         m_groupSharingService.reset();
         m_notificationService.reset();
+
+        if (m_networkWorker && m_networkThread.isRunning()) {
+            QPointer<NetworkWorker> worker{m_networkWorker};
+            QMetaObject::invokeMethod(m_networkWorker,
+                                      [worker]() {
+                                          if (worker) {
+                                              worker->shutdown();
+                                          }
+                                      },
+                                      Qt::BlockingQueuedConnection);
+        }
 
         m_networkThread.quit();
         m_networkThread.wait();
@@ -235,18 +256,19 @@ namespace client::application {
     void ClientRuntime::loadGroupUsers(qint64 groupId) {
         postInternal([this, groupId]() {
             m_groupSharingService->loadGroupUsers(groupId,
-                                                  [this, groupId](ApiResult<std::vector<qint64>> result) mutable {
+                                                  [this, groupId](ApiResult<std::vector<domain::models::UserProfile>> result) mutable {
                                                       emit groupUsersLoaded(groupId, std::move(result));
                                                   });
         });
     }
 
-    void ClientRuntime::addUserToGroup(qint64 userId, qint64 groupId) {
-        postInternal([this, userId, groupId]() {
-            m_groupSharingService->addUserToGroup(userId,
+    void ClientRuntime::addUserToGroup(QString login, qint64 groupId) {
+        postInternal([this, login = std::move(login), groupId]() mutable {
+            const auto requestedLogin = login;
+            m_groupSharingService->addUserToGroup(std::move(login),
                                                   groupId,
-                                                  [this, userId, groupId](ApiResult<void> result) mutable {
-                                                      emit userAddedToGroup(userId, groupId, std::move(result));
+                                                  [this, requestedLogin, groupId](ApiResult<void> result) mutable {
+                                                      emit userAddedToGroup(requestedLogin, groupId, std::move(result));
                                                   });
         });
     }

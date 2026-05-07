@@ -32,8 +32,11 @@ namespace client::presentation {
         setMinimumWidth(420);
 
         m_baseUrlEdit = new QLineEdit(QStringLiteral("http://127.0.0.1:8080"), this);
+        m_baseUrlEdit->setObjectName(QStringLiteral("baseUrlEdit"));
         m_loginEdit = new QLineEdit(this);
+        m_loginEdit->setObjectName(QStringLiteral("loginEdit"));
         m_passwordEdit = new QLineEdit(this);
+        m_passwordEdit->setObjectName(QStringLiteral("passwordEdit"));
         m_passwordEdit->setEchoMode(QLineEdit::Password);
 
         auto* form = new QFormLayout;
@@ -42,8 +45,11 @@ namespace client::presentation {
         form->addRow(QStringLiteral("Password"), m_passwordEdit);
 
         m_loginButton = new QPushButton(QStringLiteral("Login"), this);
+        m_loginButton->setObjectName(QStringLiteral("loginButton"));
         m_registerButton = new QPushButton(QStringLiteral("Register"), this);
+        m_registerButton->setObjectName(QStringLiteral("registerButton"));
         m_statusLabel = new QLabel(this);
+        m_statusLabel->setObjectName(QStringLiteral("statusLabel"));
         m_statusLabel->setWordWrap(true);
 
         auto* buttons = new QHBoxLayout;

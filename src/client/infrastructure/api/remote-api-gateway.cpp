@@ -7,6 +7,7 @@ namespace client::infrastructure::api {
     RemoteApiGateway::RemoteApiGateway(QUrl baseUrl)
         : m_apiClient(std::move(baseUrl)),
           m_authApi(m_apiClient),
+          m_userApi(m_apiClient),
           m_fileApi(m_apiClient),
           m_contentApi(m_apiClient),
           m_lockApi(m_apiClient),
@@ -33,6 +34,10 @@ namespace client::infrastructure::api {
 
     AuthApi& RemoteApiGateway::authApi() noexcept {
         return m_authApi;
+    }
+
+    UserApi& RemoteApiGateway::userApi() noexcept {
+        return m_userApi;
     }
 
     FileApi& RemoteApiGateway::fileApi() noexcept {

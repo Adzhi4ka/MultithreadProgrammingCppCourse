@@ -6,10 +6,12 @@
 #include "domain/models/notification-event.h"
 #include "domain/models/remote-file.h"
 #include "domain/models/user-session.h"
+#include "domain/models/user-profile.h"
 #include "infrastructure/api/api-result.h"
 
 #include <QByteArray>
 #include <QObject>
+#include <QString>
 #include <QThread>
 #include <QUrl>
 
@@ -89,7 +91,7 @@ namespace client::application {
 
             void loadCurrentUserGroups(qint64 currentUserId);
             void loadGroupUsers(qint64 groupId);
-            void addUserToGroup(qint64 userId, qint64 groupId);
+            void addUserToGroup(QString login, qint64 groupId);
             void removeUserFromGroup(qint64 userId, qint64 groupId);
             void createGroupForCurrentUser(QString name, qint64 currentUserId);
 
@@ -116,8 +118,8 @@ namespace client::application {
             void versionsLoaded(qint64 fileId, ApiResult<std::vector<domain::models::FileVersion>> result);
 
             void currentUserGroupsLoaded(qint64 currentUserId, ApiResult<std::vector<domain::models::Group>> result);
-            void groupUsersLoaded(qint64 groupId, ApiResult<std::vector<qint64>> result);
-            void userAddedToGroup(qint64 userId, qint64 groupId, ApiResult<void> result);
+            void groupUsersLoaded(qint64 groupId, ApiResult<std::vector<domain::models::UserProfile>> result);
+            void userAddedToGroup(QString login, qint64 groupId, ApiResult<void> result);
             void userRemovedFromGroup(qint64 userId, qint64 groupId, ApiResult<void> result);
             void groupCreated(ApiResult<domain::models::Group> result);
 

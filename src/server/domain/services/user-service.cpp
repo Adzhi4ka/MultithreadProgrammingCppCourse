@@ -68,4 +68,26 @@ namespace domain::services {
         return newUserId;
     }
 
+    ServiceResult<User> UserService::getById(int64_t userId) {
+        auto ruow = m_database.createReadUnitOfWork();
+
+        auto userResult = m_userRepo.getById(ruow, userId);
+        if (!userResult) {
+            return std::unexpected(mapPersistenceError(userResult.error()));
+        }
+
+        return *userResult;
+    }
+
+    ServiceResult<User> UserService::getByLogin(const std::string& login) {
+        auto ruow = m_database.createReadUnitOfWork();
+
+        auto userResult = m_userRepo.getByLogin(ruow, login);
+        if (!userResult) {
+            return std::unexpected(mapPersistenceError(userResult.error()));
+        }
+
+        return *userResult;
+    }
+
 }

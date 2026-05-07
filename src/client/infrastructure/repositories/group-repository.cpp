@@ -5,6 +5,7 @@
 
 namespace {
     using Group = client::domain::models::Group;
+    using UserProfile = client::domain::models::UserProfile;
 }
 
 namespace client::infrastructure::repositories {
@@ -20,15 +21,44 @@ namespace client::infrastructure::repositories {
         m_groupsById.insert(group.id, std::move(group));
     }
 
-    void GroupRepository::replaceGroupUsers(qint64 groupId, std::vector<qint64> users) {
-        std::sort(users.begin(), users.end());
-        users.erase(std::unique(users.begin(), users.end()), users.end());
+    void GroupRepository::upsertUser(UserProfile user) {
+        m_usersById.insert(user.userId, std::move(user));
+    }
+
+    void GroupRepository::replaceGroupUsers(qint64 groupId, std::vector<UserProfile> users) {
+        for (const auto& user : users) {
+            if (user.isValid()) {
+                m_usersById.insert(user.userId, user);
+            }
+        }
+
+        std::sort(users.begin(), users.end(), [](const auto& lhs, const auto& rhs) {
+            return lhs.userId < rhs.userId;
+        });
+
+        users.erase(std::unique(users.begin(), users.end(), [](const auto& lhs, const auto& rhs) {
+            return lhs.userId == rhs.userId;
+        }), users.end());
+
+        std::sort(users.begin(), users.end(), [](const auto& lhs, const auto& rhs) {
+            return lhs.login.localeAwareCompare(rhs.login) < 0;
+        });
+
         m_usersByGroupId.insert(groupId, std::move(users));
     }
 
     std::optional<Group> GroupRepository::findGroup(qint64 groupId) const {
         const auto it = m_groupsById.constFind(groupId);
         if (it == m_groupsById.constEnd()) {
+            return std::nullopt;
+        }
+
+        return *it;
+    }
+
+    std::optional<UserProfile> GroupRepository::findUser(qint64 userId) const {
+        const auto it = m_usersById.constFind(userId);
+        if (it == m_usersById.constEnd()) {
             return std::nullopt;
         }
 
@@ -50,7 +80,7 @@ namespace client::infrastructure::repositories {
         return result;
     }
 
-    std::vector<qint64> GroupRepository::groupUsers(qint64 groupId) const {
+    std::vector<UserProfile> GroupRepository::groupUsers(qint64 groupId) const {
         const auto it = m_usersByGroupId.constFind(groupId);
         if (it == m_usersByGroupId.constEnd()) {
             return {};

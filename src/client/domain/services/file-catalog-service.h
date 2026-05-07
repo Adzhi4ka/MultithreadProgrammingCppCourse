@@ -37,6 +37,9 @@ namespace client::domain::services {
             void hydrateFiles(qint64 currentUserId,
                             ApiResult<std::vector<RemoteFile>> result,
                             std::shared_ptr<std::function<void(ApiResult<std::vector<RemoteFile>>)>> callback);
+            void requestCreatorHydration(qint64 fileId,
+                                        qint64 userId,
+                                        std::shared_ptr<FileHydrationState> state);
             void requestAclHydration(qint64 fileId,
                                     qint64 currentUserId,
                                     std::shared_ptr<FileHydrationState> state);
