@@ -4,9 +4,9 @@
 
 namespace client::domain::models {
 
-    struct Group {
+struct Group {
         qint64 id = 0;
         QString name;
-    };
+};
 
-}
+}  // namespace client::domain::models

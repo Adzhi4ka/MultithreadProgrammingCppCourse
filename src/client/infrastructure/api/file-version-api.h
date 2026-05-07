@@ -1,39 +1,36 @@
 #pragma once
 
+#include <QObject>
+#include <QString>
+#include <functional>
+#include <vector>
+
 #include "api-client.h"
 #include "api-result.h"
 #include "domain/models/file-version.h"
 
-#include <QObject>
-#include <QString>
-
-#include <functional>
-#include <vector>
-
 namespace client::infrastructure::api {
 
-    class FileVersionApi : public QObject {
+class FileVersionApi : public QObject {
 
-            using FileVersion = domain::models::FileVersion;
+        using FileVersion = domain::models::FileVersion;
 
-            Q_OBJECT
-            ApiClient& m_apiClient;
+        Q_OBJECT
+        ApiClient& m_apiClient;
 
-        public:
+    public:
 
-            explicit FileVersionApi(ApiClient& apiClient, QObject* parent = nullptr);
+        explicit FileVersionApi(ApiClient& apiClient, QObject* parent = nullptr);
 
-            void create(qint64 fileId,
-                        const QString& logicalNameSnapshot,
-                        std::function<void(ApiResult<FileVersion>)> callback);
-            void getCurrent(qint64 fileId, std::function<void(ApiResult<FileVersion>)> callback);
-            void getAll(qint64 fileId,
-                        std::function<void(ApiResult<std::vector<FileVersion>>)> callback);
+        void create(qint64 fileId, const QString& logicalNameSnapshot,
+                    std::function<void(ApiResult<FileVersion>)> callback);
+        void getCurrent(qint64 fileId, std::function<void(ApiResult<FileVersion>)> callback);
+        void getAll(qint64 fileId, std::function<void(ApiResult<std::vector<FileVersion>>)> callback);
 
-        private:
+    private:
 
-            static ApiResult<FileVersion> parseVersionResponse(const RawApiResponse& response);
-            static ApiResult<std::vector<FileVersion>> parseVersionsResponse(const RawApiResponse& response);
-    };
+        static ApiResult<FileVersion> parseVersionResponse(const RawApiResponse& response);
+        static ApiResult<std::vector<FileVersion>> parseVersionsResponse(const RawApiResponse& response);
+};
 
-}
+}  // namespace client::infrastructure::api

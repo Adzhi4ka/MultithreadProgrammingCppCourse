@@ -4,14 +4,14 @@
 
 namespace infrastructure::db::sqlite {
 
-    void applySchema(SQLite::Database& db) {
+void applySchema(SQLite::Database& db) {
 
-        db.exec("PRAGMA foreign_keys = ON;");
-        db.exec("PRAGMA journal_mode = WAL;");
+    db.exec("PRAGMA foreign_keys = ON;");
+    db.exec("PRAGMA journal_mode = WAL;");
 
-        for (const auto& createTable : migrations::kCreateTablesTopSortedArray) {
-            db.exec(createTable);
-        }
+    for (const auto& createTable : migrations::kCreateTablesTopSortedArray) {
+        db.exec(createTable);
     }
+}
 
-} // namespace infrastructure::db::sqlite
+}  // namespace infrastructure::db::sqlite

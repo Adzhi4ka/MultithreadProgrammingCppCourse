@@ -1,12 +1,12 @@
 #pragma once
 
-#include "domain/models/user-session.h"
-
 #include <optional>
+
+#include "domain/models/user-session.h"
 
 namespace client::infrastructure::repositories {
 
-    class SessionRepository {
+class SessionRepository {
 
         using UserSession = domain::models::UserSession;
 
@@ -19,7 +19,6 @@ namespace client::infrastructure::repositories {
 
         bool hasSession() const noexcept;
         const std::optional<UserSession>& current() const noexcept;
+};
 
-    };
-
-}
+}  // namespace client::infrastructure::repositories

@@ -1,77 +1,74 @@
 #pragma once
 
+#include <sys/types.h>
+
 #include <array>
 #include <cstdint>
 #include <string>
 
-#include <sys/types.h>
-
 namespace infrastructure::file_storage {
 
-    class FileStorage {
+class FileStorage {
 
-            static constexpr int kInvalidFd = -1;
-            int m_fd{kInvalidFd};
+        static constexpr int kInvalidFd = -1;
+        int m_fd{kInvalidFd};
 
-        public:
+    public:
 
-            static std::array<char, 124> m_pathBuf;
-            static std::size_t m_prefixLen;
+        static std::array<char, 124> m_pathBuf;
+        static std::size_t m_prefixLen;
 
-        private:
+    private:
 
-            explicit FileStorage(int fd) noexcept;
-    
-        public:
+        explicit FileStorage(int fd) noexcept;
 
-            FileStorage() = delete;
+    public:
 
-           ~FileStorage();
+        FileStorage() = delete;
 
-            FileStorage(const FileStorage& other) = delete;
-            FileStorage& operator=(const FileStorage& other) = delete;
+        ~FileStorage();
 
-            FileStorage(FileStorage&& other) noexcept;
-            FileStorage& operator=(FileStorage&& other) noexcept;
+        FileStorage(const FileStorage& other) = delete;
+        FileStorage& operator=(const FileStorage& other) = delete;
 
-            static FileStorage openReadOnly(uint64_t path);
+        FileStorage(FileStorage&& other) noexcept;
+        FileStorage& operator=(FileStorage&& other) noexcept;
 
-            static FileStorage openWriteOnly(uint64_t path);
+        static FileStorage openReadOnly(uint64_t path);
 
-            static FileStorage openReadWrite(uint64_t path);
+        static FileStorage openWriteOnly(uint64_t path);
 
-            static FileStorage createNew(uint64_t path, mode_t mode = 0644);
+        static FileStorage openReadWrite(uint64_t path);
 
-            static void remove(uint64_t path);
+        static FileStorage createNew(uint64_t path, mode_t mode = 0644);
 
-            static std::string makePath(uint64_t path);
+        static void remove(uint64_t path);
 
-        private:
+        static std::string makePath(uint64_t path);
 
-            static int openImpl(std::array<char, 124> path, int flags, mode_t mode);
+    private:
 
-            static inline auto fillAsciiHex(uint64_t value) {
-                static constexpr char hex[] = "0123456789abcdef";
+        static int openImpl(std::array<char, 124> path, int flags, mode_t mode);
 
-                auto pathBuf = m_pathBuf;
+        static inline auto fillAsciiHex(uint64_t value) {
+            static constexpr char hex[] = "0123456789abcdef";
 
-                for (int i = 15; i >= 0; --i) {
-                    pathBuf[m_prefixLen + i] = hex[value & 0xF];
-                    value >>= 4;
-                }
-                pathBuf[m_prefixLen + 16] = '\0';
+            auto pathBuf = m_pathBuf;
 
-                return pathBuf;                
+            for (int i = 15; i >= 0; --i) {
+                pathBuf[m_prefixLen + i] = hex[value & 0xF];
+                value >>= 4;
             }
+            pathBuf[m_prefixLen + 16] = '\0';
 
-        public:
+            return pathBuf;
+        }
 
-            off_t size() const;
+    public:
 
-            inline auto getFd() const noexcept {
-                return m_fd;
-            }
+        off_t size() const;
 
-    };
+        inline auto getFd() const noexcept { return m_fd; }
+};
 
-}
+}  // namespace infrastructure::file_storage

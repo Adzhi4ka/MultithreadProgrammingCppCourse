@@ -1,5 +1,8 @@
 #pragma once
 
+#include <QUrl>
+#include <functional>
+
 #include "api-client.h"
 #include "auth-api.h"
 #include "file-acl-api.h"
@@ -11,48 +14,43 @@
 #include "notification-stream-client.h"
 #include "user-api.h"
 
-#include <QUrl>
-
-#include <functional>
-
 namespace client::infrastructure::api {
 
-    class RemoteApiGateway {
+class RemoteApiGateway {
 
-            ApiClient m_apiClient;
-            AuthApi m_authApi;
-            UserApi m_userApi;
-            FileApi m_fileApi;
-            FileContentApi m_contentApi;
-            FileLockApi m_lockApi;
-            FileAclApi m_aclApi;
-            FileVersionApi m_versionApi;
-            GroupApi m_groupApi;
-            NotificationStreamClient m_notificationStreamClient;
+        ApiClient m_apiClient;
+        AuthApi m_authApi;
+        UserApi m_userApi;
+        FileApi m_fileApi;
+        FileContentApi m_contentApi;
+        FileLockApi m_lockApi;
+        FileAclApi m_aclApi;
+        FileVersionApi m_versionApi;
+        GroupApi m_groupApi;
+        NotificationStreamClient m_notificationStreamClient;
 
-        public:
+    public:
 
-            explicit RemoteApiGateway(QUrl baseUrl);
+        explicit RemoteApiGateway(QUrl baseUrl);
 
-            RemoteApiGateway(const RemoteApiGateway&) = delete;
-            RemoteApiGateway& operator=(const RemoteApiGateway&) = delete;
+        RemoteApiGateway(const RemoteApiGateway&) = delete;
+        RemoteApiGateway& operator=(const RemoteApiGateway&) = delete;
 
-            void setBaseUrl(QUrl baseUrl);
-            void setBearerToken(QString token);
-            void clearBearerToken();
+        void setBaseUrl(QUrl baseUrl);
+        void setBearerToken(QString token);
+        void clearBearerToken();
 
-            AuthApi& authApi() noexcept;
-            UserApi& userApi() noexcept;
-            FileApi& fileApi() noexcept;
-            FileContentApi& contentApi() noexcept;
-            FileLockApi& lockApi() noexcept;
-            FileAclApi& aclApi() noexcept;
-            FileVersionApi& versionApi() noexcept;
-            GroupApi& groupApi() noexcept;
+        AuthApi& authApi() noexcept;
+        UserApi& userApi() noexcept;
+        FileApi& fileApi() noexcept;
+        FileContentApi& contentApi() noexcept;
+        FileLockApi& lockApi() noexcept;
+        FileAclApi& aclApi() noexcept;
+        FileVersionApi& versionApi() noexcept;
+        GroupApi& groupApi() noexcept;
 
-            void startNotifications(std::function<void(ApiResult<domain::models::NotificationEvent>)> callback);
-            void stopNotifications();
+        void startNotifications(std::function<void(ApiResult<domain::models::NotificationEvent>)> callback);
+        void stopNotifications();
+};
 
-    };
-
-}
+}  // namespace client::infrastructure::api

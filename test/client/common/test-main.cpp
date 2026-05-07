@@ -1,6 +1,6 @@
-#include <QApplication>
-
 #include <gtest/gtest.h>
+
+#include <QApplication>
 
 int main(int argc, char** argv) {
     if (qEnvironmentVariableIsEmpty("QT_QPA_PLATFORM")) {

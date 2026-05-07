@@ -7,20 +7,20 @@
 
 namespace tests::client {
 
-    bool waitUntil(const std::function<bool()>& condition, int timeoutMs) {
-        QElapsedTimer timer;
-        timer.start();
+bool waitUntil(const std::function<bool()>& condition, int timeoutMs) {
+    QElapsedTimer timer;
+    timer.start();
 
-        while (!condition()) {
-            if (timer.elapsed() >= timeoutMs) {
-                return condition();
-            }
-
-            QCoreApplication::processEvents(QEventLoop::AllEvents, 25);
-            QThread::msleep(5);
+    while (!condition()) {
+        if (timer.elapsed() >= timeoutMs) {
+            return condition();
         }
 
-        return true;
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 25);
+        QThread::msleep(5);
     }
 
+    return true;
 }
+
+}  // namespace tests::client

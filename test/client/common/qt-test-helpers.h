@@ -4,6 +4,6 @@
 
 namespace tests::client {
 
-    bool waitUntil(const std::function<bool()>& condition, int timeoutMs = 3000);
+bool waitUntil(const std::function<bool()>& condition, int timeoutMs = 3000);
 
 }

@@ -1,101 +1,97 @@
 #pragma once
 
-#include "database-factory.h"
+#include <SQLiteCpp/SQLiteCpp.h>
 
 #include <mutex>
+#include <queue>
 #include <semaphore>
 #include <vector>
-#include <queue>
 
-#include <SQLiteCpp/SQLiteCpp.h>
+#include "database-factory.h"
 
 namespace infrastructure::db::sqlite {
 
-    class SqliteDatabase;
+class SqliteDatabase;
 
-    // по факту можно на статичный полиморфизм переделать, но пока это в дальний ящик
-    class UnitOfWork {
+// по факту можно на статичный полиморфизм переделать, но пока это в дальний ящик
+class UnitOfWork {
 
-        protected:
+    protected:
 
-            SQLite::Database& m_db;
+        SQLite::Database& m_db;
 
-        public:
+    public:
 
-            explicit UnitOfWork(SQLite::Database& db) noexcept;
+        explicit UnitOfWork(SQLite::Database& db) noexcept;
 
-            virtual ~UnitOfWork() = default;
+        virtual ~UnitOfWork() = default;
 
-            SQLite::Database& connection() noexcept;
+        SQLite::Database& connection() noexcept;
+};
 
-    };
+class ReadUnitOfWork final : public UnitOfWork {
 
-    class ReadUnitOfWork final : public UnitOfWork {
+        SqliteDatabase* m_pOwner;
 
-            SqliteDatabase* m_pOwner;
+    public:
 
-        public:
+        explicit ReadUnitOfWork(SqliteDatabase& owner, SQLite::Database& db);
 
-            explicit ReadUnitOfWork(SqliteDatabase& owner, SQLite::Database& db);
+        ~ReadUnitOfWork() override;
 
-            ~ReadUnitOfWork() override;
+        void close();
+};
 
-            void close();
+class WriteUnitOfWork final : public UnitOfWork {
 
-    };
+        static constexpr const char* const kBegin = "BEGIN IMMEDIATE";
+        static constexpr const char* const kCommit = "COMMIT";
+        static constexpr const char* const kRollback = "ROLLBACK";
 
-    class WriteUnitOfWork final : public UnitOfWork {
+        SqliteDatabase* m_pOwner;
 
-            static constexpr const char* const kBegin = "BEGIN IMMEDIATE";
-            static constexpr const char* const kCommit = "COMMIT";
-            static constexpr const char* const kRollback = "ROLLBACK";
+        bool m_finished{false};
 
-            SqliteDatabase* m_pOwner;
+    public:
 
-            bool m_finished {false};
+        explicit WriteUnitOfWork(SqliteDatabase& owner, SQLite::Database& db);
 
-        public:
+        ~WriteUnitOfWork() override;
 
-            explicit WriteUnitOfWork(SqliteDatabase& owner, SQLite::Database& db);
+    public:
 
-            ~WriteUnitOfWork() override;
+        void commit();
+        void rollback() noexcept;
+        void close();
+};
 
-        public:
+class SqliteDatabase {
 
-            void commit();
-            void rollback() noexcept;
-            void close();
+        using Database = SQLite::Database;
+        using DatabaseUniquePtr = std::unique_ptr<Database>;
 
-    };
+        DatabaseUniquePtr m_writerCon;
+        std::binary_semaphore m_writerBinSem;
 
-    class SqliteDatabase {
+        std::vector<DatabaseUniquePtr> m_readerCons;
+        std::queue<Database*> m_availableReaders;
+        std::mutex m_readersMutex;
+        std::counting_semaphore<> m_readersSemaphore;
 
-            using Database = SQLite::Database;
-            using DatabaseUniquePtr = std::unique_ptr<Database>;
+    public:
 
-            DatabaseUniquePtr m_writerCon;
-            std::binary_semaphore m_writerBinSem;
+        explicit SqliteDatabase(DatabaseFactory& factory);
 
-            std::vector<DatabaseUniquePtr> m_readerCons;
-            std::queue<Database*> m_availableReaders;
-            std::mutex m_readersMutex;
-            std::counting_semaphore<> m_readersSemaphore;
+        WriteUnitOfWork createWriteUnitOfWork();
+        ReadUnitOfWork createReadUnitOfWork();
 
-        public:
+    private:
 
-            explicit SqliteDatabase(DatabaseFactory& factory);
+        friend class ReadUnitOfWork;
+        friend class WriteUnitOfWork;
 
-            WriteUnitOfWork createWriteUnitOfWork();
-            ReadUnitOfWork createReadUnitOfWork();
+        void releaseWriter();
+        void releaseReader(Database& dbReader);
+};
 
-        private:
-
-            friend class ReadUnitOfWork;
-            friend class WriteUnitOfWork;
-
-            void releaseWriter();
-            void releaseReader(Database& dbReader);
-
-    };
-
-} // namespace infrastructure::db::sqlite
+}  // namespace infrastructure::db::sqlite

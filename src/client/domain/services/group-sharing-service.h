@@ -1,54 +1,45 @@
 #pragma once
 
-#include "domain/models/user-profile.h"
-#include "domain/services/remote-service-base.h"
-#include "infrastructure/repositories/group-repository.h"
-
 #include <functional>
 #include <memory>
 #include <vector>
 
+#include "domain/models/user-profile.h"
+#include "domain/services/remote-service-base.h"
+#include "infrastructure/repositories/group-repository.h"
+
 namespace client::domain::services {
 
-    class GroupSharingService : public RemoteServiceBase {
+class GroupSharingService : public RemoteServiceBase {
 
-            using Group = domain::models::Group;
-            using UserProfile = domain::models::UserProfile;
+        using Group = domain::models::Group;
+        using UserProfile = domain::models::UserProfile;
 
-            infrastructure::repositories::GroupRepository& m_groupRepository;
+        infrastructure::repositories::GroupRepository& m_groupRepository;
 
-        public:
-            GroupSharingService(application::NetworkWorker& networkWorker,
-                                QObject& internalContext,
-                                QObject& uiContext,
-                                infrastructure::repositories::GroupRepository& groupRepository) noexcept;
+    public:
 
-            void loadCurrentUserGroups(qint64 currentUserId,
-                                       std::function<void(ApiResult<std::vector<Group>>)> callback);
-            void loadGroupUsers(qint64 groupId,
-                                std::function<void(ApiResult<std::vector<UserProfile>>)> callback);
-            void addUserToGroup(QString login,
-                                qint64 groupId,
-                                std::function<void(ApiResult<void>)> callback);
-            void removeUserFromGroup(qint64 userId,
-                                    qint64 groupId,
-                                    std::function<void(ApiResult<void>)> callback);
-            void createGroupForCurrentUser(QString name,
-                                        qint64 currentUserId,
-                                        std::function<void(ApiResult<domain::models::Group>)> callback);
+        GroupSharingService(application::NetworkWorker& networkWorker, QObject& internalContext, QObject& uiContext,
+                            infrastructure::repositories::GroupRepository& groupRepository) noexcept;
 
-        private:
-            struct GroupLoadState;
-            struct UserLoadState;
+        void loadCurrentUserGroups(qint64 currentUserId, std::function<void(ApiResult<std::vector<Group>>)> callback);
+        void loadGroupUsers(qint64 groupId, std::function<void(ApiResult<std::vector<UserProfile>>)> callback);
+        void addUserToGroup(QString login, qint64 groupId, std::function<void(ApiResult<void>)> callback);
+        void removeUserFromGroup(qint64 userId, qint64 groupId, std::function<void(ApiResult<void>)> callback);
+        void createGroupForCurrentUser(QString name, qint64 currentUserId,
+                                       std::function<void(ApiResult<Group>)> callback);
 
-            void loadGroupsByIds(ApiResult<std::vector<qint64>> idsResult,
-                                std::shared_ptr<std::function<void(ApiResult<std::vector<domain::models::Group>>)>> callback);
-            void requestGroup(qint64 groupId, std::shared_ptr<GroupLoadState> state);
-            void loadUsersByIds(qint64 groupId,
-                                ApiResult<std::vector<qint64>> idsResult,
-                                std::shared_ptr<std::function<void(ApiResult<std::vector<UserProfile>>)>> callback);
-            void requestUser(qint64 groupId, qint64 userId, std::shared_ptr<UserLoadState> state);
+    private:
 
-    };
+        struct GroupLoadState;
+        struct UserLoadState;
 
-}
+        void loadGroupsByIds(ApiResult<std::vector<qint64>> idsResult,
+                             std::shared_ptr<std::function<void(ApiResult<std::vector<Group>>)>> callback);
+        void requestGroup(qint64 groupId, std::shared_ptr<GroupLoadState> state);
+        void loadUsersByIds(qint64 groupId, ApiResult<std::vector<qint64>> idsResult,
+                            std::shared_ptr<std::function<void(ApiResult<std::vector<UserProfile>>)>> callback);
+        void requestUser(qint64 groupId, qint64 userId, std::shared_ptr<UserLoadState> state);
+};
+
+}  // namespace client::domain::services

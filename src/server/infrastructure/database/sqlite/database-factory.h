@@ -6,24 +6,23 @@
 #include <vector>
 
 namespace infrastructure::db::sqlite {
-   
-    class DatabaseFactory {
 
-            using Database = SQLite::Database;
-            using DatabaseUniquePtr = std::unique_ptr<Database>;
+class DatabaseFactory {
 
-            std::string m_dbPath;
-            size_t m_readersCount;
+        using Database = SQLite::Database;
+        using DatabaseUniquePtr = std::unique_ptr<Database>;
 
-        public:
+        std::string m_dbPath;
+        size_t m_readersCount;
 
-            DatabaseFactory(std::string dbPath, size_t readersCount) noexcept
-                 : m_dbPath(std::move(dbPath)), m_readersCount(readersCount) {}
+    public:
 
-            DatabaseUniquePtr createWriter() const;
+        DatabaseFactory(std::string dbPath, size_t readersCount) noexcept
+            : m_dbPath(std::move(dbPath)), m_readersCount(readersCount) {}
 
-            std::vector<DatabaseUniquePtr> createReaders() const;
+        DatabaseUniquePtr createWriter() const;
 
-    };
+        std::vector<DatabaseUniquePtr> createReaders() const;
+};
 
-} // namespace infrastructure::db::sqlite
+}  // namespace infrastructure::db::sqlite

@@ -1,26 +1,24 @@
 #pragma once
 
-#include "domain/models/remote-file.h"
-
 #include <QWidget>
-
 #include <optional>
+
+#include "domain/models/remote-file.h"
 
 class QLabel;
 
 namespace client::presentation {
 
-    class FileInfoWidget : public QWidget {
+class FileInfoWidget : public QWidget {
 
-            Q_OBJECT
-            QLabel* m_label = nullptr;
+        Q_OBJECT
+        QLabel* m_label = nullptr;
 
-        public:
+    public:
 
-            explicit FileInfoWidget(QWidget* parent = nullptr);
+        explicit FileInfoWidget(QWidget* parent = nullptr);
 
-            void setFile(const std::optional<domain::models::RemoteFile>& file);
+        void setFile(const std::optional<domain::models::RemoteFile>& file);
+};
 
-    };
-
-}
+}  // namespace client::presentation

@@ -1,15 +1,15 @@
-#include "application/client-runtime.h"
-#include "infrastructure/repositories/session-repository.h"
-#include "presentation/login-dialog.h"
-#include "presentation/main-window.h"
-#include "presentation/styles/app-style.h"
-
 #include <QApplication>
 #include <QColor>
 #include <QDialog>
 #include <QPalette>
 #include <QStyleFactory>
 #include <QUrl>
+
+#include "application/client-runtime.h"
+#include "infrastructure/repositories/session-repository.h"
+#include "presentation/login-dialog.h"
+#include "presentation/main-window.h"
+#include "presentation/styles/app-style.h"
 
 int main(int argc, char* argv[]) {
     QApplication app(argc, argv);

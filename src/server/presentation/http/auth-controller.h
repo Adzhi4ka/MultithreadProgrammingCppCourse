@@ -7,29 +7,26 @@
 
 namespace presentation::http {
 
-    class AuthController {
+class AuthController {
 
-            domain::services::UserService& m_userService;
-            infrastructure::security::AuthTokenStore& m_tokenStore;
-            infrastructure::execution::ThreadPool& m_threadPool;
+        domain::services::UserService& m_userService;
+        infrastructure::security::AuthTokenStore& m_tokenStore;
+        infrastructure::execution::ThreadPool& m_threadPool;
 
-        public:
+    public:
 
-            AuthController(domain::services::UserService& userService,
-                           infrastructure::security::AuthTokenStore& tokenStore,
-                           infrastructure::execution::ThreadPool& threadPool) noexcept;
+        AuthController(domain::services::UserService& userService, infrastructure::security::AuthTokenStore& tokenStore,
+                       infrastructure::execution::ThreadPool& threadPool) noexcept;
 
-            void registerRoutes(infrastructure::http::Router& router);
+        void registerRoutes(infrastructure::http::Router& router);
 
-        private:
+    private:
 
-            void handleRegister(infrastructure::http::RouteContext& ctx);
-            void handleLogin(infrastructure::http::RouteContext& ctx);
+        void handleRegister(infrastructure::http::RouteContext& ctx);
+        void handleLogin(infrastructure::http::RouteContext& ctx);
 
-            static infrastructure::http::Response makeServiceErrorResponse(unsigned version,
-                                                                           bool keepAlive,
-                                                                           domain::services::ServiceError error);
+        static infrastructure::http::Response makeServiceErrorResponse(unsigned version, bool keepAlive,
+                                                                       domain::services::ServiceError error);
+};
 
-    };
-
-}
+}  // namespace presentation::http

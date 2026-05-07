@@ -1,43 +1,38 @@
 #pragma once
 
+#include <cstdint>
+
 #include "domain/models/file-lock.h"
 #include "domain/services/service-result.h"
-
-#include "infrastructure/repositories/file-lock-repository.h"
 #include "infrastructure/database/sqlite/sqlite-database.h"
-
-#include <cstdint>
+#include "infrastructure/repositories/file-lock-repository.h"
 
 namespace domain::services {
 
-    class FileLockService {
+class FileLockService {
 
-            using SqliteDatabase = infrastructure::db::sqlite::SqliteDatabase;
-            using FileLockRepository = infrastructure::repositories::FileLockRepository;
-            using FileLock = domain::models::FileLock;
+        using SqliteDatabase = infrastructure::db::sqlite::SqliteDatabase;
+        using FileLockRepository = infrastructure::repositories::FileLockRepository;
+        using FileLock = domain::models::FileLock;
 
-            static constexpr int64_t defaultLockDurationSec = 3600;
+        static constexpr int64_t defaultLockDurationSec = 3600;
 
-            SqliteDatabase& m_database;
-            FileLockRepository& m_fileLockRepo;
-        
-        public:
+        SqliteDatabase& m_database;
+        FileLockRepository& m_fileLockRepo;
 
-            FileLockService(SqliteDatabase& database,
-                            FileLockRepository& fileLockRepo) noexcept;
+    public:
 
-            ServiceResult<FileLock> acquireLock(int64_t fileId,
-                                                int64_t userId,
-                                                int64_t lockDurationSec = defaultLockDurationSec);
+        FileLockService(SqliteDatabase& database, FileLockRepository& fileLockRepo) noexcept;
 
-            ServiceResult<void> renewLock(int64_t fileId,
-                                          int64_t lockToken,
-                                          int64_t lockDurationSec = defaultLockDurationSec);
+        ServiceResult<FileLock> acquireLock(int64_t fileId, int64_t userId,
+                                            int64_t lockDurationSec = defaultLockDurationSec);
 
-            ServiceResult<void> releaseLock(int64_t fileId, int64_t lockToken);
+        ServiceResult<void> renewLock(int64_t fileId, int64_t lockToken,
+                                      int64_t lockDurationSec = defaultLockDurationSec);
 
-            ServiceResult<FileLock> getActiveLock(int64_t fileId);
+        ServiceResult<void> releaseLock(int64_t fileId, int64_t lockToken);
 
-    };
+        ServiceResult<FileLock> getActiveLock(int64_t fileId);
+};
 
-}
+}  // namespace domain::services

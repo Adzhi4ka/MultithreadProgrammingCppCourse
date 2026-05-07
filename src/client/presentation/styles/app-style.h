@@ -4,6 +4,6 @@ class QApplication;
 
 namespace client::presentation::styles {
 
-    void applyDarkTheme(QApplication& app);
+void applyDarkTheme(QApplication& app);
 
 }

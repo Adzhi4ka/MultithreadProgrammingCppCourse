@@ -7,22 +7,21 @@
 
 namespace presentation::http {
 
-    class NotificationController {
+class NotificationController {
 
-            infrastructure::http::ActiveSessionRegistry& m_registry;
-            infrastructure::security::AuthTokenStore& m_tokenStore;
+        infrastructure::http::ActiveSessionRegistry& m_registry;
+        infrastructure::security::AuthTokenStore& m_tokenStore;
 
-        public:
+    public:
 
-            NotificationController(infrastructure::http::ActiveSessionRegistry& registry,
-                                   infrastructure::security::AuthTokenStore& tokenStore) noexcept;
+        NotificationController(infrastructure::http::ActiveSessionRegistry& registry,
+                               infrastructure::security::AuthTokenStore& tokenStore) noexcept;
 
-            void registerRoutes(infrastructure::http::Router& router);
+        void registerRoutes(infrastructure::http::Router& router);
 
-        private:
+    private:
 
-            void handleStream(infrastructure::http::RouteContext& ctx);
+        void handleStream(infrastructure::http::RouteContext& ctx);
+};
 
-    };
-
-}
+}  // namespace presentation::http

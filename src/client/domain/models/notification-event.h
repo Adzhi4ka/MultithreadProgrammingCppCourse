@@ -5,9 +5,9 @@
 
 namespace client::domain::models {
 
-    struct NotificationEvent {
+struct NotificationEvent {
         QString name;
         QJsonObject payload;
-    };
+};
 
-}
+}  // namespace client::domain::models

@@ -10,36 +10,32 @@
 
 namespace infrastructure::http {
 
-    class SseSession;
+class SseSession;
 
-    class ActiveSessionRegistry {
+class ActiveSessionRegistry {
 
-            using SessionMap = std::unordered_map<uint64_t, std::shared_ptr<SseSession>>;
+        using SessionMap = std::unordered_map<uint64_t, std::shared_ptr<SseSession>>;
 
-            std::unordered_map<int64_t, SessionMap> m_sessions;
-            std::shared_mutex m_mutex;
+        std::unordered_map<int64_t, SessionMap> m_sessions;
+        std::shared_mutex m_mutex;
 
-            std::atomic_uint64_t m_nextSessionId {1};
+        std::atomic_uint64_t m_nextSessionId{1};
 
-        public:
+    public:
 
-            uint64_t nextSessionId() noexcept;
+        uint64_t nextSessionId() noexcept;
 
-            void add(const std::shared_ptr<SseSession>& session);
-            void remove(int64_t userId, uint64_t sessionId);
+        void add(const std::shared_ptr<SseSession>& session);
+        void remove(int64_t userId, uint64_t sessionId);
 
-            void publishToUser(int64_t userId,
-                               const std::string& eventName,
-                               const std::string& data);
+        void publishToUser(int64_t userId, const std::string& eventName, const std::string& data);
 
-            void publishToAll(const std::string& eventName,
-                              const std::string& data);
+        void publishToAll(const std::string& eventName, const std::string& data);
 
-        private:
+    private:
 
-            std::vector<std::shared_ptr<SseSession>> collectUserSessions(int64_t userId);
-            std::vector<std::shared_ptr<SseSession>> collectAllSessions();
+        std::vector<std::shared_ptr<SseSession>> collectUserSessions(int64_t userId);
+        std::vector<std::shared_ptr<SseSession>> collectAllSessions();
+};
 
-    };
-
-}
+}  // namespace infrastructure::http

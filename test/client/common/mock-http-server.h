@@ -7,62 +7,60 @@
 #include <QTcpServer>
 #include <QUrl>
 #include <QUrlQuery>
-
 #include <functional>
 #include <vector>
 
 namespace tests::client {
 
-    struct MockHttpRequest {
+struct MockHttpRequest {
         QByteArray method;
         QString path;
         QUrlQuery query;
         QHash<QByteArray, QByteArray> headers;
         QByteArray body;
-    };
+};
 
-    struct MockHttpResponse {
+struct MockHttpResponse {
         int status = 200;
         QByteArray contentType = "application/json; charset=utf-8";
         QByteArray body;
         QList<QPair<QByteArray, QByteArray>> headers;
-    };
+};
 
-    class MockHttpServer : public QObject {
+class MockHttpServer : public QObject {
 
-            struct Route {
+        struct Route {
                 QByteArray method;
                 QString path;
                 std::function<MockHttpResponse(const MockHttpRequest&)> handler;
-            };
+        };
 
-            QTcpServer m_server;
-            std::vector<Route> m_routes;
-            QList<MockHttpRequest> m_requests;
+        QTcpServer m_server;
+        std::vector<Route> m_routes;
+        QList<MockHttpRequest> m_requests;
 
-        public:
-            explicit MockHttpServer(QObject* parent = nullptr);
+    public:
 
-            bool start();
-            void stop();
+        explicit MockHttpServer(QObject* parent = nullptr);
 
-            QUrl baseUrl() const;
-            qsizetype requestCount() const noexcept;
-            QList<MockHttpRequest> requests() const;
-            void clearRequests();
+        bool start();
+        void stop();
 
-            void addRoute(QByteArray method,
-                          QString path,
-                          std::function<MockHttpResponse(const MockHttpRequest&)> handler);
+        QUrl baseUrl() const;
+        qsizetype requestCount() const noexcept;
+        QList<MockHttpRequest> requests() const;
+        void clearRequests();
 
-        private:
-            void handleIncomingConnection();
-            MockHttpResponse dispatch(const MockHttpRequest& request) const;
+        void addRoute(QByteArray method, QString path, std::function<MockHttpResponse(const MockHttpRequest&)> handler);
 
-            static bool tryReadRequest(const QByteArray& buffer, MockHttpRequest* request);
-            static QByteArray serializeResponse(const MockHttpResponse& response);
-            static QByteArray reasonPhrase(int status);
+    private:
 
-    };
+        void handleIncomingConnection();
+        MockHttpResponse dispatch(const MockHttpRequest& request) const;
 
-}
+        static bool tryReadRequest(const QByteArray& buffer, MockHttpRequest* request);
+        static QByteArray serializeResponse(const MockHttpResponse& response);
+        static QByteArray reasonPhrase(int status);
+};
+
+}  // namespace tests::client

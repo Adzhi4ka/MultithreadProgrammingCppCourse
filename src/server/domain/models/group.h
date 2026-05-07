@@ -5,9 +5,9 @@
 
 namespace domain::models {
 
-    struct Group {
+struct Group {
         int64_t id;
         std::string name;
-    };
+};
 
-}
+}  // namespace domain::models

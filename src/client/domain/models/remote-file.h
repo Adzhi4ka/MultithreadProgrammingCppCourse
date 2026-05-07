@@ -1,13 +1,13 @@
 #pragma once
 
-#include "acl-level.h"
-
 #include <QString>
 #include <optional>
 
+#include "acl-level.h"
+
 namespace client::domain::models {
 
-    struct RemoteFile {
+struct RemoteFile {
         qint64 id = 0;
         QString fullLogicalName;
         qint64 currentVersionId = 0;
@@ -21,6 +21,6 @@ namespace client::domain::models {
         std::optional<qint64> lockedByUserId;
         std::optional<QString> lockedByLogin;
         std::optional<qint64> lockLeaseUntil;
-    };
+};
 
-}
+}  // namespace client::domain::models

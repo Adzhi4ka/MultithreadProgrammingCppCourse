@@ -1,35 +1,32 @@
 #pragma once
 
+#include <boost/asio/ip/tcp.hpp>
+
 #include "http-session.h"
 #include "router.h"
 
-#include <boost/asio/ip/tcp.hpp>
-
 namespace infrastructure::http {
 
-    namespace net = boost::asio;
-    namespace beast = boost::beast;
-    using tcp = net::ip::tcp;
+namespace net = boost::asio;
+namespace beast = boost::beast;
+using tcp = net::ip::tcp;
 
-    class Listener : public std::enable_shared_from_this<Listener> {
+class Listener : public std::enable_shared_from_this<Listener> {
 
-            net::io_context& m_ioc;
-            tcp::acceptor m_acceptor;
-            Router& m_router;
+        net::io_context& m_ioc;
+        tcp::acceptor m_acceptor;
+        Router& m_router;
 
-        public:
+    public:
 
-            Listener(net::io_context& ioc,
-                     tcp::endpoint endpoint,
-                     Router& router);
+        Listener(net::io_context& ioc, tcp::endpoint endpoint, Router& router);
 
-            void run();
+        void run();
 
-        private:
+    private:
 
-            void doAccept();
-            void onAccept(beast::error_code ec, tcp::socket socket);
+        void doAccept();
+        void onAccept(beast::error_code ec, tcp::socket socket);
+};
 
-    };
-
-}
+}  // namespace infrastructure::http

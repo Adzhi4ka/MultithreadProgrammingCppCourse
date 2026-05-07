@@ -4,16 +4,16 @@
 
 namespace client::domain::models {
 
-    struct FileAcl {
+struct FileAcl {
         qint64 fileId = 0;
         qint64 groupId = 0;
         AclLevel aclLevel = AclLevel::NoProperty;
-    };
+};
 
-    struct UserFileAcl {
+struct UserFileAcl {
         qint64 fileId = 0;
         qint64 userId = 0;
         AclLevel aclLevel = AclLevel::NoProperty;
-    };
+};
 
-}
+}  // namespace client::domain::models

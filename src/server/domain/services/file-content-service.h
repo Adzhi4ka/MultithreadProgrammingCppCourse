@@ -1,42 +1,40 @@
 #pragma once
 
-#include "domain/services/service-result.h"
-
-#include "infrastructure/file-storage/file-storage.h"
-
 #include <string>
 #include <string_view>
 
+#include "domain/services/service-result.h"
+#include "infrastructure/file-storage/file-storage.h"
+
 namespace domain::services {
 
-    struct CreatedFileStorage {
+struct CreatedFileStorage {
         uint64_t physicalPath;
         infrastructure::file_storage::FileStorage storage;
-    };
+};
 
-    struct DownloadFileStorage {
+struct DownloadFileStorage {
         std::string path;
         uint64_t size;
-    };
+};
 
-    class FileContentService {
+class FileContentService {
 
-        public:
+    public:
 
-            ServiceResult<CreatedFileStorage> createNew();
+        ServiceResult<CreatedFileStorage> createNew();
 
-            ServiceResult<infrastructure::file_storage::FileStorage> openRead(uint64_t physicalPath);
+        ServiceResult<infrastructure::file_storage::FileStorage> openRead(uint64_t physicalPath);
 
-            ServiceResult<DownloadFileStorage> openDownload(uint64_t physicalPath);
+        ServiceResult<DownloadFileStorage> openDownload(uint64_t physicalPath);
 
-            ServiceResult<void> writeAll(uint64_t physicalPath, std::string_view content);
+        ServiceResult<void> writeAll(uint64_t physicalPath, std::string_view content);
 
-            ServiceResult<void> remove(uint64_t physicalPath);
+        ServiceResult<void> remove(uint64_t physicalPath);
 
-        private:
+    private:
 
-            uint64_t generatePhysicalName();
+        uint64_t generatePhysicalName();
+};
 
-    };
-
-} // namespace domain::services
+}  // namespace domain::services

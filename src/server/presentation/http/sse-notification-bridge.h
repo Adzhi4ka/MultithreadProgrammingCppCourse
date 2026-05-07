@@ -1,33 +1,32 @@
 #pragma once
 
+#include <boost/signals2/connection.hpp>
+
 #include "domain/notifications/notification-events.h"
 #include "infrastructure/http/active-session-registry.h"
 
-#include <boost/signals2/connection.hpp>
-
 namespace presentation::http {
 
-    class SseNotificationBridge {
+class SseNotificationBridge {
 
-            infrastructure::http::ActiveSessionRegistry& m_registry;
+        infrastructure::http::ActiveSessionRegistry& m_registry;
 
-            boost::signals2::scoped_connection m_fileCreatedConnection;
-            boost::signals2::scoped_connection m_fileLockedConnection;
-            boost::signals2::scoped_connection m_fileUnlockedConnection;
-            boost::signals2::scoped_connection m_groupAssignedConnection;
+        boost::signals2::scoped_connection m_fileCreatedConnection;
+        boost::signals2::scoped_connection m_fileLockedConnection;
+        boost::signals2::scoped_connection m_fileUnlockedConnection;
+        boost::signals2::scoped_connection m_groupAssignedConnection;
 
-        public:
+    public:
 
-            SseNotificationBridge(domain::notifications::NotificationEventBus& eventBus,
-                                  infrastructure::http::ActiveSessionRegistry& registry);
+        SseNotificationBridge(domain::notifications::NotificationEventBus& eventBus,
+                              infrastructure::http::ActiveSessionRegistry& registry);
 
-        private:
+    private:
 
-            void onFileCreated(const domain::notifications::FileCreatedEvent& event);
-            void onFileLocked(const domain::notifications::FileLockedEvent& event);
-            void onFileUnlocked(const domain::notifications::FileUnlockedEvent& event);
-            void onGroupAssigned(const domain::notifications::GroupAssignedEvent& event);
+        void onFileCreated(const domain::notifications::FileCreatedEvent& event);
+        void onFileLocked(const domain::notifications::FileLockedEvent& event);
+        void onFileUnlocked(const domain::notifications::FileUnlockedEvent& event);
+        void onGroupAssigned(const domain::notifications::GroupAssignedEvent& event);
+};
 
-    };
-
-}
+}  // namespace presentation::http
